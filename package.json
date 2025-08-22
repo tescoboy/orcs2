@@ -1,0 +1,29 @@
+{
+  "name": "adcp-admin-demo",
+  "version": "1.0.0",
+  "description": "AdCP Admin Dashboard and Publisher Portal Demo",
+  "main": "admin/api-server.js",
+  "scripts": {
+    "start": "node admin/api-server.js",
+    "dev": "nodemon admin/api-server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "adcp",
+    "admin",
+    "publisher",
+    "tenant-management",
+    "product-catalog",
+    "demo"
+  ],
+  "author": "AdCP Demo",
+  "license": "MIT"
+}

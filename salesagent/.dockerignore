@@ -1,0 +1,105 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+coverage.xml
+*.cover
+.nox/
+test-results/
+
+# Local files
+*.log
+*.db
+*.sqlite
+*.sqlite3
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Config
+config.json
+client_secret*.json
+.env
+.env.*
+conductor_ports.json
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+README.md
+
+# Docker
+docker-compose.override.yml
+docker-compose.*.yml
+Dockerfile.*
+.dockerignore
+
+# Conductor workspaces
+.conductor/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Project specific
+audit_logs/
+ui_tests/
+playwright-report/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+
+# Fly.io
+fly.toml

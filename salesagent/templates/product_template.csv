@@ -1,0 +1,6 @@
+product_id,name,description,type,price,targeting_options
+prod-video-001,Premium Video Ad,High-quality video advertising slot,video,25.00,"geo,demo,interests"
+prod-display-001,Display Banner,Standard display banner ad,display,15.00,"geo,demo"
+prod-audio-001,Audio Spot,Radio-style audio advertisement,audio,20.00,"geo,demo"
+prod-native-001,Native Ad,Native content integration,native,30.00,"geo,demo,interests"
+prod-ctv-001,Connected TV,CTV advertising inventory,ctv,35.00,"geo,demo,interests"
