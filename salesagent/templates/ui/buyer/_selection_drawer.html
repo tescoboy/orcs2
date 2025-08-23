@@ -1,0 +1,81 @@
+{% if selected_products %}
+<div class="d-flex flex-column h-100">
+    <!-- Selected Products List -->
+    <div class="flex-grow-1 overflow-auto">
+        {% for product in selected_products %}
+        <div class="card mb-3">
+            <div class="card-body p-3">
+                <div class="d-flex">
+                    <!-- Product Image -->
+                    {% if product.image_url %}
+                    <img src="{{ product.image_url }}" 
+                         class="rounded me-3" 
+                         alt="{{ product.name }}"
+                         style="width: 60px; height: 60px; object-fit: cover;">
+                    {% else %}
+                    <div class="rounded me-3 bg-light d-flex align-items-center justify-content-center" 
+                         style="width: 60px; height: 60px;">
+                        <i class="fas fa-image text-muted"></i>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Product Info -->
+                    <div class="flex-grow-1">
+                        <h6 class="card-title mb-1">{{ product.name }}</h6>
+                        <p class="text-muted small mb-1">{{ product.publisher_name }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-success fw-bold">${{ "%.2f"|format(product.price_cpm) }} CPM</span>
+                            <span class="badge bg-primary">{{ product.delivery_type|title }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Remove Button -->
+                    <div class="ms-2">
+                        <button class="btn btn-outline-danger btn-sm"
+                                hx-post="/buyer/selection/remove"
+                                hx-target="#selection-count"
+                                hx-swap="innerHTML"
+                                hx-vals='{"product_key": "{{ product.publisher_tenant_id }}:{{ product.id }}"}'
+                                onclick="this.closest('.card').remove();">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Summary and Action -->
+    <div class="border-top pt-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <h6 class="mb-0">{{ count }} product{{ 's' if count != 1 else '' }} selected</h6>
+                <small class="text-muted">
+                    Total: ${{ "%.2f"|format(selected_products|sum(attribute='price_cpm')) }} CPM
+                </small>
+            </div>
+        </div>
+        
+        <a href="/buyer/campaign/new" class="btn btn-primary w-100">
+            <i class="fas fa-rocket me-2"></i>
+            Continue to Campaign Builder
+        </a>
+        
+        <button class="btn btn-outline-secondary w-100 mt-2"
+                hx-post="/buyer/selection/clear"
+                hx-target="#selection-count"
+                hx-swap="innerHTML"
+                onclick="document.querySelectorAll('.card').forEach(card => card.remove());">
+            <i class="fas fa-trash me-2"></i>
+            Clear Selection
+        </button>
+    </div>
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+    <h5 class="text-muted">No products selected</h5>
+    <p class="text-muted">Search for products and add them to your selection to get started</p>
+</div>
+{% endif %}

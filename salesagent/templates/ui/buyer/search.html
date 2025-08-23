@@ -1,0 +1,150 @@
+{% extends "ui/base.html" %}
+
+{% block title %}Buyer Search - Find Products Across Publishers{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1">
+                        <i class="fas fa-search me-2"></i>
+                        Product Discovery
+                    </h1>
+                    <p class="text-muted mb-0">Search across all publishers to find the perfect products for your campaign</p>
+                </div>
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-outline-primary me-2" 
+                            hx-get="/buyer/selection" 
+                            hx-target="#selection-drawer"
+                            hx-swap="innerHTML">
+                        <i class="fas fa-shopping-cart me-1"></i>
+                        Selection
+                        <span class="badge bg-primary ms-1" id="selection-count">0</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form hx-post="/buyer/search" 
+                          hx-target="#results" 
+                          hx-swap="innerHTML"
+                          hx-indicator="#loading-indicator">
+                        
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="prompt" class="form-label">
+                                        <i class="fas fa-lightbulb me-1"></i>
+                                        Campaign Brief
+                                    </label>
+                                    <textarea class="form-control" 
+                                              id="prompt" 
+                                              name="prompt" 
+                                              rows="4" 
+                                              placeholder="Describe your campaign goals, target audience, and requirements..."
+                                              required></textarea>
+                                    <div class="form-text">
+                                        Be specific about your target audience, campaign goals, and any special requirements
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="max_results" class="form-label">
+                                        <i class="fas fa-list-ol me-1"></i>
+                                        Max Results
+                                    </label>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="max_results" 
+                                           name="max_results" 
+                                           value="50" 
+                                           min="1" 
+                                           max="200">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fas fa-filter me-1"></i>
+                                        Filters (Optional)
+                                    </label>
+                                    <div class="form-text mb-2">Include specific publishers</div>
+                                    <select class="form-select mb-2" name="include_tenant_ids" multiple>
+                                        <option value="technews-daily">TechNews Daily</option>
+                                        <option value="entertainment-hub">Entertainment Hub</option>
+                                        <option value="lifestyle-mag">Lifestyle Magazine</option>
+                                    </select>
+                                    
+                                    <div class="form-text mb-2">Exclude specific publishers</div>
+                                    <select class="form-select" name="exclude_tenant_ids" multiple>
+                                        <option value="technews-daily">TechNews Daily</option>
+                                        <option value="entertainment-hub">Entertainment Hub</option>
+                                        <option value="lifestyle-mag">Lifestyle Magazine</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-search me-1"></i>
+                                Search Products
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading-indicator" class="htmx-indicator text-center py-4" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Searching across publishers...</p>
+    </div>
+
+    <!-- Results -->
+    <div id="results">
+        <div class="text-center py-5">
+            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+            <h3 class="text-muted">Enter your campaign brief to discover products</h3>
+            <p class="text-muted">Search across all publishers to find the perfect products for your campaign goals</p>
+        </div>
+    </div>
+</div>
+
+<!-- Selection Drawer -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="selection-drawer" style="width: 400px;">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title">
+            <i class="fas fa-shopping-cart me-2"></i>
+            Selected Products
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body">
+        <!-- Content will be loaded via HTMX -->
+    </div>
+</div>
+
+<script>
+// Update selection count badge
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.xhr.responseJSON && evt.detail.xhr.responseJSON.count !== undefined) {
+        document.getElementById('selection-count').textContent = evt.detail.xhr.responseJSON.count;
+    }
+});
+</script>
+{% endblock %}

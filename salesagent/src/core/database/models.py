@@ -17,12 +17,15 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Numeric,
+    Enum,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from src.core.json_validators import JSONValidatorMixin
+from datetime import datetime
 
 Base = declarative_base()
 
@@ -52,6 +55,10 @@ class Tenant(Base, JSONValidatorMixin):
     auto_approve_formats = Column(JSON)  # JSON array
     human_review_required = Column(Boolean, nullable=False, default=True)
     policy_settings = Column(JSON)  # JSON object
+    
+    # AI prompt configuration
+    ai_prompt_template = Column(Text, nullable=True)
+    ai_prompt_updated_at = Column(DateTime, nullable=True)
 
     # Relationships
     products = relationship("Product", back_populates="tenant", cascade="all, delete-orphan")
@@ -662,3 +669,40 @@ class ObjectWorkflowMapping(Base):
         Index("idx_object_workflow_step", "step_id"),
         Index("idx_object_workflow_created", "created_at"),
     )
+
+
+class BuyerCampaign(Base):
+    """Buyer campaign model for cross-publisher campaigns."""
+    __tablename__ = 'buyer_campaigns'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    objective = Column(Text)
+    budget_total = Column(Numeric(10, 2), nullable=False)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    status = Column(Enum('draft', 'active', 'paused', 'archived', name='campaign_status'), 
+                   default='draft', nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Relationship to campaign products
+    products = relationship("BuyerCampaignProduct", back_populates="campaign", cascade="all, delete-orphan")
+
+
+class BuyerCampaignProduct(Base):
+    """Buyer campaign product model for cross-publisher product snapshots."""
+    __tablename__ = 'buyer_campaign_products'
+    
+    id = Column(Integer, primary_key=True)
+    campaign_id = Column(Integer, ForeignKey('buyer_campaigns.id'), nullable=False)
+    product_id = Column(String(255), nullable=False)
+    publisher_tenant_id = Column(String(255), nullable=False)
+    source_agent_id = Column(String(255))
+    price_cpm = Column(Numeric(10, 2), nullable=False)
+    quantity = Column(Integer)
+    snapshot_json = Column(Text, nullable=False)  # JSON string of product snapshot
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationship to campaign
+    campaign = relationship("BuyerCampaign", back_populates="products")

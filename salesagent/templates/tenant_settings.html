@@ -396,6 +396,11 @@
             <span>API & Tokens</span>
         </a>
 
+        <a class="settings-nav-item" data-section="ai">
+            <span class="settings-nav-icon">🤖</span>
+            <span>AI Settings</span>
+        </a>
+
         <a class="settings-nav-item" data-section="users">
             <span class="settings-nav-icon">👤</span>
             <span>Users & Access</span>
@@ -906,6 +911,70 @@ result = await client.tools.get_products(brief="video ads")</pre>
                 </form>
             </div>
         </div>
+
+        <!-- AI Settings -->
+        <div id="ai" class="settings-section">
+            <div class="settings-header">
+                <h2>AI Settings</h2>
+                <p>Configure AI prompt templates for product ranking</p>
+            </div>
+
+            <div class="form-section">
+                <h3>AI Prompt Configuration</h3>
+                <p class="text-muted mb-4">
+                    Customize the AI prompt template used for product ranking. 
+                    Leave empty to use the default template.
+                </p>
+                
+                <form method="POST" action="/tenant/{{ tenant.tenant_id }}/settings/ai">
+                    <div class="form-group">
+                        <label for="prompt_template">Prompt Template</label>
+                        <textarea 
+                            class="form-control" 
+                            id="prompt_template" 
+                            name="prompt_template" 
+                            rows="15" 
+                            placeholder="Enter your custom AI prompt template here..."
+                        >{{ tenant.ai_prompt_template or '' }}</textarea>
+                        <div class="form-text">
+                            <strong>Required placeholders:</strong> {{PROMPT}}, {{PRODUCTS_JSON}}, {{MAX_RESULTS}}<br>
+                            <strong>Optional placeholders:</strong> {{LOCALE}}, {{CURRENCY}}
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>
+                            Save Template
+                        </button>
+                        
+                        <button type="button" class="btn btn-secondary" onclick="previewTemplate()">
+                            <i class="fas fa-eye me-1"></i>
+                            Preview
+                        </button>
+                        
+                        <form method="POST" action="/tenant/{{ tenant.tenant_id }}/settings/ai/reset" style="display: inline;">
+                            <button type="submit" class="btn btn-outline-warning" 
+                                    onclick="return confirm('Reset to default template?')">
+                                <i class="fas fa-undo me-1"></i>
+                                Reset to Default
+                            </button>
+                        </form>
+                    </div>
+                </form>
+                
+                <div id="preview-result" class="mt-4" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Preview Result</h6>
+                        </div>
+                        <div class="card-body">
+                            <pre id="preview-content" class="bg-light p-3 rounded"></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -961,6 +1030,33 @@ function formatJSON() {
     } catch (e) {
         alert('Invalid JSON: ' + e.message);
     }
+}
+
+// Preview AI template
+function previewTemplate() {
+    const template = document.getElementById('prompt_template').value;
+    const previewResult = document.getElementById('preview-result');
+    const previewContent = document.getElementById('preview-content');
+    
+    fetch('/tenant/{{ tenant.tenant_id }}/settings/ai/preview', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `prompt_template=${encodeURIComponent(template)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            previewContent.textContent = data.compiled_preview;
+            previewResult.style.display = 'block';
+        } else {
+            alert('Preview failed: ' + data.errors.join(', '));
+        }
+    })
+    .catch(error => {
+        alert('Error generating preview: ' + error);
+    });
 }
 
 // Test Slack

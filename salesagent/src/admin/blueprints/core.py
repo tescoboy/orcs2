@@ -12,7 +12,7 @@ from sqlalchemy import text
 
 from src.admin.utils import require_auth
 from src.core.database.database_session import get_db_session
-from src.core.database.models import Principal, Tenant
+from src.core.database.models import Principal, Tenant, Product
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,100 @@ def health():
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return f"Database connection failed: {str(e)}", 500
+
+
+@core_bp.route("/create_publisher", methods=["GET", "POST"])
+def create_publisher_simple():
+    """Create a new publisher without authentication (for demo)."""
+    if request.method == "GET":
+        return render_template("create_tenant.html")
+
+
+@core_bp.route("/select_publisher", methods=["GET", "POST"])
+def select_publisher():
+    """Simple publisher selector page."""
+    if request.method == "GET":
+        # Get all active tenants
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        
+        # Create a new engine with the correct database URL
+        db_url = 'sqlite:////Users/harvingupta/.adcp/adcp.db'
+        engine = create_engine(db_url)
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        
+        with SessionLocal() as db_session:
+            tenants = db_session.query(Tenant).filter_by(is_active=True).all()
+        return render_template("simple_tenant_selector.html", tenants=tenants)
+    
+    # Handle POST - redirect to selected publisher
+    tenant_id = request.form.get("tenant_id")
+    if tenant_id:
+        return redirect(f"/publisher/{tenant_id}/products")
+    else:
+        return redirect("/select_publisher")
+
+
+
+
+    # Handle POST request
+    try:
+        # Get form data
+        tenant_name = request.form.get("name", "").strip()
+        subdomain = request.form.get("subdomain", "").strip()
+        ad_server = request.form.get("ad_server", "mock").strip()
+
+        if not tenant_name:
+            flash("Publisher name is required", "error")
+            return render_template("create_tenant.html")
+
+        # Generate tenant ID if not provided
+        if not subdomain:
+            subdomain = tenant_name.lower().replace(" ", "_").replace("-", "_")
+            # Remove non-alphanumeric characters
+            subdomain = "".join(c for c in subdomain if c.isalnum() or c == "_")
+
+        tenant_id = f"tenant_{subdomain}"
+
+        # Generate admin token
+        admin_token = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
+
+        with get_db_session() as db_session:
+            # Check if tenant already exists
+            existing = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            if existing:
+                flash(f"Publisher with ID {tenant_id} already exists", "error")
+                return render_template("create_tenant.html")
+
+            # Create new tenant
+            new_tenant = Tenant(
+                tenant_id=tenant_id,
+                name=tenant_name,
+                subdomain=subdomain,
+                is_active=True,
+                ad_server=ad_server,
+                admin_token=admin_token,
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC)
+            )
+
+            db_session.add(new_tenant)
+            db_session.commit()
+
+            flash(f"Publisher '{tenant_name}' created successfully!", "success")
+            
+            # Show success page with access info
+            return render_template("create_tenant.html", 
+                                 success=True,
+                                 tenant_name=tenant_name,
+                                 tenant_id=tenant_id,
+                                 admin_token=admin_token,
+                                 login_url=f"/tenant/{tenant_id}/login")
+
+    except Exception as e:
+        logger.error(f"Error creating publisher: {e}")
+        flash(f"Error creating publisher: {str(e)}", "error")
+        return render_template("create_tenant.html")
 
 
 @core_bp.route("/create_tenant", methods=["GET", "POST"])

@@ -1,0 +1,72 @@
+<!-- Payload Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <h6 class="card-title text-primary">
+                    <i class="fas fa-download me-2"></i>
+                    Export Options
+                </h6>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-primary" onclick="copyToClipboard()">
+                        <i class="fas fa-copy me-2"></i>
+                        Copy JSON
+                    </button>
+                    <a href="{{ url_for('buyer_payload.get_payload_json', campaign_id=campaign_id, download=1) }}" 
+                       class="btn btn-primary">
+                        <i class="fas fa-download me-2"></i>
+                        Download JSON
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JSON Payload -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-code me-2"></i>
+                    Payload JSON
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <pre id="payload-json" class="bg-dark text-light p-4 mb-0" style="max-height: 600px; overflow-y: auto; font-size: 0.875rem; line-height: 1.4;"><code>{{ payload_json }}</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Back Navigation -->
+<div class="row mt-4">
+    <div class="col-12 text-center">
+        <a href="{{ url_for('buyer_campaign.campaign_summary', campaign_id=campaign_id) }}" 
+           class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>
+            Back to Campaign Summary
+        </a>
+    </div>
+</div>
+
+<!-- Help Section -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-info">
+            <div class="card-body">
+                <h6 class="card-title text-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    About This Payload
+                </h6>
+                <ul class="card-text small mb-0">
+                    <li>This JSON represents your campaign in a standardized ad payload format</li>
+                    <li>Each line_item contains a product snapshot from the time of campaign creation</li>
+                    <li>Use this payload to integrate with ad servers or trafficking systems</li>
+                    <li>The flight dates and budget are included for campaign planning</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

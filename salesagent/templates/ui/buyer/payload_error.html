@@ -1,0 +1,44 @@
+{% extends "ui/base.html" %}
+
+{% block title %}Payload Error - Campaign {{ campaign_id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                Payload Generation Error
+            </h1>
+            <p class="text-muted mb-0">Campaign #{{ campaign_id }}</p>
+        </div>
+    </div>
+
+    <!-- Error Details -->
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="alert alert-warning" role="alert">
+                <h5 class="alert-heading">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Unable to Generate Ad Payload
+                </h5>
+                <p>There were issues generating the ad payload for this campaign:</p>
+                <ul class="mb-0">
+                    {% for error in errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="text-center">
+                <a href="{{ url_for('buyer_campaign.campaign_summary', campaign_id=campaign_id) }}" 
+                   class="btn btn-primary">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back to Campaign Summary
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

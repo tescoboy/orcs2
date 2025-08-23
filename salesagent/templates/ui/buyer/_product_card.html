@@ -1,0 +1,124 @@
+<div class="card h-100 product-card">
+    <!-- Product Image -->
+    {% if product.image_url %}
+    <img src="{{ product.image_url }}" 
+         class="card-img-top" 
+         alt="{{ product.name }}"
+         style="height: 200px; object-fit: cover;">
+    {% else %}
+    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
+         style="height: 200px;">
+        <i class="fas fa-image fa-3x text-muted"></i>
+    </div>
+    {% endif %}
+    
+    <div class="card-body d-flex flex-column">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <h6 class="card-title mb-0">{{ product.name }}</h6>
+            <span class="badge bg-primary">{{ product.delivery_type|title }}</span>
+        </div>
+        
+        <!-- Publisher -->
+        <p class="text-muted small mb-2">
+            <i class="fas fa-building me-1"></i>
+            {{ product.publisher_name }}
+        </p>
+        
+        <!-- Price -->
+        <div class="mb-2">
+            <span class="h5 text-success mb-0">${{ "%.2f"|format(product.price_cpm) }}</span>
+            <small class="text-muted">CPM</small>
+        </div>
+        
+        <!-- Formats -->
+        {% if product.formats %}
+        <div class="mb-2">
+            {% for format in product.formats %}
+            <span class="badge bg-secondary me-1">{{ format|title }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- AI Merchandising Blurb -->
+        {% if product.rationale %}
+        <div class="mb-3">
+            <div class="alert alert-info py-2 px-3 mb-0">
+                <i class="fas fa-robot me-1"></i>
+                <small>{{ product.rationale }}</small>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Description (Collapsible) -->
+        {% if product.description %}
+        <div class="mb-3">
+            <div class="description-preview">
+                <small class="text-muted">{{ product.description[:100] }}{% if product.description|length > 100 %}...{% endif %}</small>
+            </div>
+            {% if product.description|length > 100 %}
+            <div class="description-full" style="display: none;">
+                <small class="text-muted">{{ product.description }}</small>
+            </div>
+            <button class="btn btn-link btn-sm p-0 text-decoration-none" 
+                    onclick="toggleDescription(this)">
+                <small>Show more</small>
+            </button>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- Targeting Info -->
+        {% if product.targeting %}
+        <div class="mb-3">
+            <small class="text-muted">
+                <i class="fas fa-bullseye me-1"></i>
+                {% if product.targeting.geo %}
+                {{ product.targeting.geo|join(', ') }}
+                {% endif %}
+                {% if product.targeting.interests %}
+                • {{ product.targeting.interests|join(', ') }}
+                {% endif %}
+            </small>
+        </div>
+        {% endif %}
+        
+        <!-- Add to Selection Button -->
+        <div class="mt-auto">
+            <button class="btn btn-outline-primary btn-sm w-100"
+                    hx-post="/buyer/selection/add"
+                    hx-target="#selection-count"
+                    hx-swap="innerHTML"
+                    hx-vals='{"product_key": "{{ product.publisher_tenant_id }}:{{ product.id }}", 
+                              "product_id": "{{ product.id }}", 
+                              "product_name": "{{ product.name }}", 
+                              "publisher_name": "{{ product.publisher_name }}", 
+                              "publisher_tenant_id": "{{ product.publisher_tenant_id }}", 
+                              "price_cpm": "{{ product.price_cpm }}", 
+                              "delivery_type": "{{ product.delivery_type }}", 
+                              "image_url": "{{ product.image_url or '' }}", 
+                              "rationale": "{{ product.rationale or '' }}"}'>
+                <i class="fas fa-plus me-1"></i>
+                Add to Selection
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleDescription(button) {
+    const card = button.closest('.card-body');
+    const preview = card.querySelector('.description-preview');
+    const full = card.querySelector('.description-full');
+    
+    if (full.style.display === 'none') {
+        preview.style.display = 'none';
+        full.style.display = 'block';
+        button.innerHTML = '<small>Show less</small>';
+    } else {
+        preview.style.display = 'block';
+        full.style.display = 'none';
+        button.innerHTML = '<small>Show more</small>';
+    }
+}
+</script>

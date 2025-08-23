@@ -1,0 +1,90 @@
+{% if summary.products_with_snapshots %}
+    <!-- Summary Stats -->
+    <div class="row mb-4">
+        <div class="col-md-4 text-center">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h4 class="text-primary">{{ summary.product_count }}</h4>
+                    <small class="text-muted">Total Products</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-center">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h4 class="text-success">${{ "%.2f"|format(summary.total_value) }}</h4>
+                    <small class="text-muted">Total Value</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-center">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h4 class="text-info">{{ summary.products|map(attribute='publisher_tenant_id')|unique|list|length }}</h4>
+                    <small class="text-muted">Publishers</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products List -->
+    <div class="row">
+        {% for item in summary.products_with_snapshots %}
+        <div class="col-md-6 mb-3">
+            <div class="card h-100 border-light">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-start">
+                        {% if item.snapshot.image_url %}
+                        <img src="{{ item.snapshot.image_url }}" 
+                             class="rounded me-3" 
+                             alt="{{ item.snapshot.name }}"
+                             style="width: 60px; height: 60px; object-fit: cover;">
+                        {% else %}
+                        <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center"
+                             style="width: 60px; height: 60px;">
+                            <i class="fas fa-image text-muted"></i>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-1">{{ item.snapshot.name }}</h6>
+                            <p class="text-muted small mb-1">{{ item.snapshot.publisher_name }}</p>
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-primary">{{ item.snapshot.delivery_type }}</span>
+                                <span class="text-success fw-bold">${{ "%.2f"|format(item.campaign_product.price_cpm) }}</span>
+                            </div>
+                            
+                            {% if item.snapshot.formats %}
+                            <div class="mt-2">
+                                {% for format in item.snapshot.formats[:2] %}
+                                <span class="badge bg-secondary me-1">{{ format }}</span>
+                                {% endfor %}
+                                {% if item.snapshot.formats|length > 2 %}
+                                <span class="badge bg-secondary">+{{ item.snapshot.formats|length - 2 }}</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            
+                            {% if item.snapshot.rationale %}
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-lightbulb me-1"></i>
+                                    {{ item.snapshot.rationale[:50] }}{% if item.snapshot.rationale|length > 50 %}...{% endif %}
+                                </small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center py-4">
+        <i class="fas fa-exclamation-triangle text-warning fa-3x mb-3"></i>
+        <h5>No Products Attached</h5>
+        <p class="text-muted">This campaign has no products attached.</p>
+    </div>
+{% endif %}

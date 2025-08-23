@@ -1,0 +1,75 @@
+<!-- Campaign Dates -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <label for="start_date" class="form-label fw-bold">
+            <i class="fas fa-play me-2"></i>
+            Start Date *
+        </label>
+        <input type="date" 
+               class="form-control form-control-lg" 
+               id="start_date" 
+               name="start_date" 
+               required
+               min="{{ today }}">
+        <div class="form-text">
+            When should the campaign begin?
+        </div>
+    </div>
+    <div class="col-md-6">
+        <label for="end_date" class="form-label fw-bold">
+            <i class="fas fa-stop me-2"></i>
+            End Date *
+        </label>
+        <input type="date" 
+               class="form-control form-control-lg" 
+               id="end_date" 
+               name="end_date" 
+               required
+               min="{{ today }}">
+        <div class="form-text">
+            When should the campaign end?
+        </div>
+    </div>
+</div>
+
+<!-- Budget -->
+<div class="mb-4">
+    <label for="budget_total" class="form-label fw-bold">
+        <i class="fas fa-dollar-sign me-2"></i>
+        Total Budget (USD) *
+    </label>
+    <div class="input-group input-group-lg">
+        <span class="input-group-text">$</span>
+        <input type="number" 
+               class="form-control" 
+               id="budget_total" 
+               name="budget_total" 
+               step="0.01" 
+               min="0.01"
+               placeholder="0.00"
+               required>
+    </div>
+    <div class="form-text">
+        Total budget for the entire campaign period
+    </div>
+</div>
+
+<!-- Campaign Summary -->
+<div class="card bg-light mb-4">
+    <div class="card-body">
+        <h6 class="card-title">
+            <i class="fas fa-info-circle me-2"></i>
+            Campaign Summary
+        </h6>
+        <div class="row">
+            <div class="col-md-6">
+                <strong>Name:</strong><br>
+                <span class="text-muted">{{ name }}</span>
+            </div>
+            <div class="col-md-6">
+                <strong>Objective:</strong><br>
+                <span class="text-muted">{{ objective or 'Not specified' }}</span>
+            </div>
+        </div>
+    </div>
+</div>

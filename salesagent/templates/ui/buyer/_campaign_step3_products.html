@@ -1,0 +1,76 @@
+{% if selected_products %}
+    <div class="row">
+        {% for product in selected_products %}
+        <div class="col-md-6 mb-3">
+            <div class="card h-100 border-light">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-start">
+                        {% if product.image_url %}
+                        <img src="{{ product.image_url }}" 
+                             class="rounded me-3" 
+                             alt="{{ product.name }}"
+                             style="width: 60px; height: 60px; object-fit: cover;">
+                        {% else %}
+                        <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center"
+                             style="width: 60px; height: 60px;">
+                            <i class="fas fa-image text-muted"></i>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-1">{{ product.name }}</h6>
+                            <p class="text-muted small mb-1">{{ product.publisher_name }}</p>
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-primary">{{ product.delivery_type }}</span>
+                                <span class="text-success fw-bold">${{ "%.2f"|format(product.price_cpm) }}</span>
+                            </div>
+                            
+                            {% if product.formats %}
+                            <div class="mt-2">
+                                {% for format in product.formats[:2] %}
+                                <span class="badge bg-secondary me-1">{{ format }}</span>
+                                {% endfor %}
+                                {% if product.formats|length > 2 %}
+                                <span class="badge bg-secondary">+{{ product.formats|length - 2 }}</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Total Value -->
+    <div class="card bg-light mt-3">
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <h6 class="text-muted">Total Products</h6>
+                    <h4 class="text-primary">{{ selected_products|length }}</h4>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="text-muted">Total Value</h6>
+                    <h4 class="text-success">${{ "%.2f"|format(selected_products|sum(attribute='price_cpm')) }}</h4>
+                </div>
+                <div class="col-md-4">
+                    <h6 class="text-muted">Publishers</h6>
+                    <h4 class="text-info">{{ selected_products|map(attribute='publisher_tenant_id')|unique|list|length }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="text-center py-4">
+        <i class="fas fa-exclamation-triangle text-warning fa-3x mb-3"></i>
+        <h5>No Products Selected</h5>
+        <p class="text-muted">Please add products to your selection before creating a campaign.</p>
+        <a href="{{ url_for('buyer_ui.buyer_search_page') }}" class="btn btn-primary">
+            <i class="fas fa-search me-2"></i>
+            Search Products
+        </a>
+    </div>
+{% endif %}

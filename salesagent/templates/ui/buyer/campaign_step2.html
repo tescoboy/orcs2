@@ -1,0 +1,101 @@
+{% extends "ui/base.html" %}
+
+{% block title %}Flighting & Budget - Step 2{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>
+                        Flighting & Budget
+                    </h1>
+                    <p class="text-muted mb-0">Step 2 of 3: Set campaign dates and budget</p>
+                </div>
+                <div class="text-end">
+                    <small class="text-muted">Campaign: {{ name }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar" role="progressbar" style="width: 66%" aria-valuenow="66" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-2">
+                <small class="text-muted">Details</small>
+                <small class="text-primary fw-bold">Flighting & Budget</small>
+                <small class="text-muted">Review & Confirm</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('buyer_campaign.step2_submit') }}">
+                        {% include "ui/buyer/_campaign_step2_form.html" %}
+
+                        <!-- Navigation -->
+                        <div class="d-flex justify-content-between align-items-center pt-3">
+                            <a href="{{ url_for('buyer_campaign.new_campaign') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>
+                                Back to Details
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                Continue to Review
+                                <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Help Card -->
+            <div class="card mt-4 border-warning">
+                <div class="card-body">
+                    <h6 class="card-title text-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Important Notes
+                    </h6>
+                    <ul class="card-text small mb-0">
+                        <li>Campaign dates cannot be changed after creation</li>
+                        <li>Budget will be distributed across all selected products</li>
+                        <li>Ensure dates align with your campaign objectives</li>
+                        <li>Consider seasonal factors when setting dates</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set minimum end date based on start date
+document.getElementById('start_date').addEventListener('change', function() {
+    const startDate = this.value;
+    const endDateInput = document.getElementById('end_date');
+    endDateInput.min = startDate;
+    
+    // If end date is before start date, clear it
+    if (endDateInput.value && endDateInput.value < startDate) {
+        endDateInput.value = '';
+    }
+});
+
+// Set today as minimum start date
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('start_date').min = today;
+    document.getElementById('end_date').min = today;
+});
+</script>
+{% endblock %}

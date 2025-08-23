@@ -1,0 +1,36 @@
+{% if error %}
+<div class="alert alert-warning" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    {{ error }}
+</div>
+{% else %}
+<div class="row">
+    <div class="col-12 mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">
+                <i class="fas fa-th-large me-2"></i>
+                Found {{ products|length }} products
+            </h4>
+            <div class="text-muted">
+                <small>Results from multiple publishers</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if products %}
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    {% for product in products %}
+    <div class="col">
+        {% include "ui/buyer/_product_card.html" %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+    <h4 class="text-muted">No products found</h4>
+    <p class="text-muted">Try adjusting your search criteria or filters</p>
+</div>
+{% endif %}
+{% endif %}

@@ -7,10 +7,18 @@ import secrets
 from flask import Flask, request
 from flask_socketio import SocketIO, join_room
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, continue without it
+
 from src.admin.blueprints.adapters import adapters_bp
 from src.admin.blueprints.api import api_bp
 from src.admin.blueprints.auth import auth_bp, init_oauth
 from src.admin.blueprints.core import core_bp
+from src.admin.blueprints.publisher import publisher_bp
 from src.admin.blueprints.creatives import creatives_bp
 from src.admin.blueprints.gam import gam_bp
 from src.admin.blueprints.inventory import inventory_bp
@@ -57,6 +65,13 @@ def create_app(config=None):
     # Configuration
     app.secret_key = os.environ.get("FLASK_SECRET_KEY", secrets.token_hex(32))
     app.logger.setLevel(logging.INFO)
+    
+    # Set database URL if not already set
+    if not os.environ.get("DATABASE_URL"):
+        os.environ["DATABASE_URL"] = "sqlite:////Users/harvingupta/.adcp/adcp.db"
+        logger.info(f"Set DATABASE_URL to: {os.environ['DATABASE_URL']}")
+    else:
+        logger.info(f"DATABASE_URL already set to: {os.environ.get('DATABASE_URL')}")
 
     # Apply any additional config
     if config:
@@ -74,6 +89,7 @@ def create_app(config=None):
 
     # Register blueprints
     app.register_blueprint(core_bp)  # Core routes (/, /health, /static, /mcp-test)
+    app.register_blueprint(publisher_bp, url_prefix="/publisher")  # Publisher routes
     app.register_blueprint(auth_bp)  # No url_prefix - auth routes are at root
     app.register_blueprint(superadmin_settings_bp)  # Superadmin settings at /settings
     app.register_blueprint(tenants_bp, url_prefix="/tenant")
@@ -85,6 +101,42 @@ def create_app(config=None):
     app.register_blueprint(creatives_bp, url_prefix="/tenant/<tenant_id>/creative-formats")
     app.register_blueprint(policy_bp, url_prefix="/tenant/<tenant_id>/policy")
     app.register_blueprint(settings_bp, url_prefix="/tenant/<tenant_id>/settings")
+    
+    # Register AI settings blueprint
+    try:
+        from src.api.ai_settings_router import ai_settings_blueprint
+        app.register_blueprint(ai_settings_blueprint)
+    except ImportError:
+        logger.warning("ai_settings_blueprint not found")
+    
+    # Register buyer UI blueprint
+    try:
+        from api.buyer_ui_router import buyer_ui_bp
+        app.register_blueprint(buyer_ui_bp)
+    except ImportError:
+        logger.warning("buyer_ui_bp not found")
+    
+    # Register buyer campaign blueprint
+    try:
+        from api.buyer_campaign_router import buyer_campaign_bp
+        app.register_blueprint(buyer_campaign_bp)
+    except ImportError:
+        logger.warning("buyer_campaign_bp not found")
+    
+    # Register buyer payload blueprint
+    try:
+        from api.buyer_payload_router import buyer_payload_bp
+        app.register_blueprint(buyer_payload_bp)
+    except ImportError:
+        logger.warning("buyer_payload_bp not found")
+    
+    # Register health blueprint
+    try:
+        from api.health_router import health_bp
+        app.register_blueprint(health_bp)
+    except ImportError:
+        logger.warning("health_bp not found")
+    
     app.register_blueprint(adapters_bp, url_prefix="/tenant/<tenant_id>")
     app.register_blueprint(inventory_bp)  # Has its own internal routing
     app.register_blueprint(api_bp, url_prefix="/api")
@@ -180,3 +232,7 @@ def broadcast_activity_to_websocket(tenant_id: str, activity: dict):
             )
     except Exception as e:
         logger.error(f"Error broadcasting to WebSocket: {e}")
+
+
+# Create the Flask app instance for CLI
+app, socketio = create_app()

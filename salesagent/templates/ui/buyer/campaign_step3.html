@@ -1,0 +1,125 @@
+{% extends "ui/base.html" %}
+
+{% block title %}Review & Confirm - Step 3{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Review & Confirm
+                    </h1>
+                    <p class="text-muted mb-0">Step 3 of 3: Review your campaign and confirm</p>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-success fs-6">{{ selected_products|length }} products</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <div class="d-flex justify-content-between mt-2">
+                <small class="text-muted">Details</small>
+                <small class="text-muted">Flighting & Budget</small>
+                <small class="text-primary fw-bold">Review & Confirm</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Campaign Summary -->
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-rocket me-2"></i>
+                        Campaign Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Name:</strong><br>
+                        <span class="text-primary">{{ name }}</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Objective:</strong><br>
+                        <span class="text-muted">{{ objective or 'Not specified' }}</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Duration:</strong><br>
+                        <span class="text-muted">
+                            {{ start_date.strftime('%B %d, %Y') }} - {{ end_date.strftime('%B %d, %Y') }}
+                        </span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Budget:</strong><br>
+                        <span class="text-success fw-bold">${{ "%.2f"|format(budget_total) }}</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Products:</strong><br>
+                        <span class="text-info">{{ selected_products|length }} selected</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Confirmation Card -->
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Ready to Create Campaign
+                    </h6>
+                    <p class="card-text small">
+                        Review all details above. Once confirmed, your campaign will be created and products will be attached.
+                    </p>
+                    <form method="POST" action="{{ url_for('buyer_campaign.confirm') }}">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fas fa-rocket me-2"></i>
+                            Create Campaign
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selected Products -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Selected Products ({{ selected_products|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% include "ui/buyer/_campaign_step3_products.html" %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="row mt-4">
+        <div class="col-12 text-center">
+            <a href="{{ url_for('buyer_campaign.step2') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>
+                Back to Flighting & Budget
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
