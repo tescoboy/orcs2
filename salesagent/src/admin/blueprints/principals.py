@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
-from src.admin.utils import require_tenant_access
 from src.core.database.database_session import get_db_session
 from src.core.database.models import MediaBuy, Principal, Tenant
 
@@ -19,17 +18,16 @@ principals_bp = Blueprint("principals", __name__, url_prefix="/tenant/<tenant_id
 
 
 @principals_bp.route("/principals")
-@require_tenant_access()
 def list_principals(tenant_id):
     """List all principals (advertisers) for a tenant."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("core.index"))
 
-            principals = db_session.query(Principal).filter_by(tenant_id=tenant_id).order_by(Principal.name).all()
+            principals = db_session.query(Principal).order_by(Principal.name).all()
 
             # Convert to dict format for template
             principals_list = []
@@ -37,7 +35,7 @@ def list_principals(tenant_id):
                 # Count media buys for this principal
                 media_buy_count = (
                     db_session.query(MediaBuy)
-                    .filter_by(tenant_id=tenant_id, principal_id=principal.principal_id)
+                    .filter_by(principal_id=principal.principal_id)
                     .count()
                 )
 
@@ -54,12 +52,8 @@ def list_principals(tenant_id):
             # The template expects this to be under the 'advertisers' key
             # since principals are advertisers in the UI
             return render_template(
-                "tenant_dashboard.html",
-                tenant=tenant,
-                tenant_id=tenant_id,
                 advertisers=principals_list,
-                show_advertisers_tab=True,
-            )
+                show_advertisers_tab=True)
 
     except Exception as e:
         logger.error(f"Error listing principals: {e}", exc_info=True)
@@ -68,13 +62,12 @@ def list_principals(tenant_id):
 
 
 @principals_bp.route("/principals/create", methods=["GET", "POST"])
-@require_tenant_access()
 def create_principal(tenant_id):
     """Create a new principal (advertiser) for a tenant."""
     if request.method == "GET":
         # Get tenant info for GAM configuration
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("core.index"))
@@ -87,11 +80,8 @@ def create_principal(tenant_id):
             has_gam = gam_config.get("enabled", False)
 
             return render_template(
-                "create_principal.html",
-                tenant_id=tenant_id,
                 tenant_name=tenant.name,
-                has_gam=has_gam,
-            )
+                has_gam=has_gam)
 
     # POST - Create the principal
     try:
@@ -124,27 +114,24 @@ def create_principal(tenant_id):
 
         with get_db_session() as db_session:
             # Check if principal name already exists
-            existing = db_session.query(Principal).filter_by(tenant_id=tenant_id, name=principal_name).first()
+            existing = db_session.query(Principal).filter_by(name=principal_name).first()
             if existing:
                 flash(f"An advertiser named '{principal_name}' already exists", "error")
                 return redirect(request.url)
 
             # Create the principal
-            principal = Principal(
-                tenant_id=tenant_id,
-                principal_id=principal_id,
+            principal = Principal(principal_id=principal_id,
                 name=principal_name,
                 access_token=access_token,
                 platform_mappings=json.dumps(platform_mappings),
                 created_at=datetime.now(UTC),
-                updated_at=datetime.now(UTC),
-            )
+                updated_at=datetime.now(UTC))
 
             db_session.add(principal)
             db_session.commit()
 
             flash(f"Advertiser '{principal_name}' created successfully", "success")
-            return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+            return redirect(url_for("tenants.dashboard"))
 
     except Exception as e:
         logger.error(f"Error creating principal: {e}", exc_info=True)
@@ -153,7 +140,6 @@ def create_principal(tenant_id):
 
 
 @principals_bp.route("/principal/<principal_id>/update_mappings", methods=["POST"])
-@require_tenant_access()
 def update_mappings(tenant_id, principal_id):
     """Update principal platform mappings."""
     try:
@@ -164,7 +150,7 @@ def update_mappings(tenant_id, principal_id):
         platform_mappings = data.get("platform_mappings", {})
 
         with get_db_session() as db_session:
-            principal = db_session.query(Principal).filter_by(tenant_id=tenant_id, principal_id=principal_id).first()
+            principal = db_session.query(Principal).filter_by(principal_id=principal_id).first()
 
             if not principal:
                 return jsonify({"error": "Principal not found"}), 404
@@ -187,7 +173,6 @@ def update_mappings(tenant_id, principal_id):
 
 
 @principals_bp.route("/api/gam/get-advertisers", methods=["POST"])
-@require_tenant_access()
 def get_gam_advertisers(tenant_id):
     """Get list of advertisers from GAM for a tenant."""
     try:
@@ -195,7 +180,7 @@ def get_gam_advertisers(tenant_id):
 
         # Get tenant configuration
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 return jsonify({"error": "Tenant not found"}), 404
 
@@ -219,8 +204,7 @@ def get_gam_advertisers(tenant_id):
                 adapter = GoogleAdManager(
                     principal=mock_principal,
                     config=gam_config,
-                    dry_run=False,
-                )
+                    dry_run=False)
 
                 # Get advertisers (companies) from GAM
                 advertisers = adapter.get_advertisers()

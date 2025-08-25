@@ -27,20 +27,17 @@ def publisher_products(tenant_id):
     
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 logger.error(f"Tenant not found: {tenant_id}")
                 return f"Publisher not found: {tenant_id}", 404
             
             logger.info(f"Found tenant: {tenant.name}")
             
-            products = db_session.query(Product).filter_by(tenant_id=tenant_id).all()
+            products = db_session.query(Product).all()
             logger.info(f"Found {len(products)} products for tenant {tenant_id}")
             
             return render_template(
-                "publisher_products.html",
-                tenant=tenant,
-                tenant_id=tenant_id,
                 products=products
             )
             
@@ -56,7 +53,7 @@ def add_product(tenant_id):
     
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 logger.error(f"Tenant not found: {tenant_id}")
                 flash("Publisher not found", "error")
@@ -72,7 +69,6 @@ def add_product(tenant_id):
                     # Create new product
                     product = Product(
                         product_id=f"prod_{secrets.token_hex(8)}",
-                        tenant_id=tenant_id,
                         name=request.form.get("name"),
                         description=request.form.get("description", ""),
                         formats=request.form.get("formats", "").split(",") if request.form.get("formats") else [],
@@ -100,7 +96,7 @@ def add_product(tenant_id):
                     flash(f"Database error: {str(db_error)}", "error")
                     return redirect(f"/publisher/{tenant_id}/products")
             
-            return render_template("add_product.html", tenant=tenant, tenant_id=tenant_id)
+            return render_template("add_product.html", tenant=tenant)
             
     except Exception as e:
         logger.error(f"Error adding product: {e}", exc_info=True)
@@ -116,13 +112,13 @@ def delete_product(tenant_id, product_id):
     try:
         with get_db_session() as db_session:
             # Verify tenant exists
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Publisher not found", "error")
                 return redirect("/select_publisher")
             
             # Find and delete the product
-            product = db_session.query(Product).filter_by(tenant_id=tenant_id, product_id=product_id).first()
+            product = db_session.query(Product).filter_by(product_id=product_id).first()
             if not product:
                 flash("Product not found", "error")
                 return redirect(f"/publisher/{tenant_id}/products")
@@ -148,20 +144,20 @@ def delete_all_products(tenant_id):
     try:
         with get_db_session() as db_session:
             # Verify tenant exists
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Publisher not found", "error")
                 return redirect("/select_publisher")
             
             # Count products before deletion
-            products_count = db_session.query(Product).filter_by(tenant_id=tenant_id).count()
+            products_count = db_session.query(Product).count()
             
             if products_count == 0:
                 flash("No products to delete", "info")
                 return redirect(f"/publisher/{tenant_id}/products")
             
             # Delete all products for this tenant
-            db_session.query(Product).filter_by(tenant_id=tenant_id).delete()
+            db_session.query(Product).delete()
             db_session.commit()
             
             flash(f"Deleted {products_count} products successfully!", "success")
@@ -178,7 +174,7 @@ def bulk_upload_form(tenant_id):
     """Show bulk product upload form."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Publisher not found", "error")
                 return redirect("/select_publisher")
@@ -186,7 +182,7 @@ def bulk_upload_form(tenant_id):
             # Get available templates (you can customize this based on your needs)
             templates = []
             
-            return render_template("publisher_bulk_upload.html", tenant_id=tenant_id, templates=templates)
+            return render_template( templates=templates)
     except Exception as e:
         logger.error(f"Error loading bulk upload form: {e}", exc_info=True)
         flash(f"Error loading bulk upload form: {str(e)}", "error")
@@ -198,7 +194,7 @@ def bulk_upload(tenant_id):
     """Handle bulk product upload."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Publisher not found", "error")
                 return redirect("/select_publisher")
@@ -230,7 +226,6 @@ def bulk_upload(tenant_id):
                         # Create product from CSV row
                         product = Product(
                             product_id=row.get('product_id') or f"prod_{secrets.token_hex(8)}",
-                            tenant_id=tenant_id,
                             name=row['name'],
                             description=row.get('description', ''),
                             formats=row.get('formats', '').split(',') if row.get('formats') else [],
@@ -273,7 +268,6 @@ def bulk_upload(tenant_id):
                     try:
                         product = Product(
                             product_id=product_data.get('product_id') or f"prod_{secrets.token_hex(8)}",
-                            tenant_id=tenant_id,
                             name=product_data['name'],
                             description=product_data.get('description', ''),
                             formats=product_data.get('formats', []),

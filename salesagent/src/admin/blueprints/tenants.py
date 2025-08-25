@@ -8,8 +8,7 @@ from datetime import UTC, datetime
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 
-from src.admin.utils import get_tenant_config_from_db, require_auth, require_tenant_access
-from src.core.database.database_session import get_db_session
+from src.admin.utils import get_tenant_config_from_db, require_auth
 from src.core.database.models import MediaBuy, Principal, Product, Tenant, User
 from src.core.validation import sanitize_form_data, validate_form_data
 
@@ -20,31 +19,30 @@ tenants_bp = Blueprint("tenants", __name__, url_prefix="/tenant")
 
 
 @tenants_bp.route("/<tenant_id>")
-@require_tenant_access()
 def dashboard(tenant_id):
     """Show tenant dashboard."""
     try:
         with get_db_session() as db_session:
             # Get tenant info
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("core.index"))
 
             # Get stats
-            active_campaigns = db_session.query(MediaBuy).filter_by(tenant_id=tenant_id, status="active").count()
+            active_campaigns = db_session.query(MediaBuy).filter_by(status="active").count()
 
             total_spend = (
                 db_session.query(MediaBuy)
-                .filter_by(tenant_id=tenant_id)
+                
                 .filter(MediaBuy.status.in_(["active", "completed"]))
                 .all()
             )
             total_spend_amount = float(sum(buy.budget or 0 for buy in total_spend))
 
-            principals_count = db_session.query(Principal).filter_by(tenant_id=tenant_id).count()
+            principals_count = db_session.query(Principal).count()
 
-            products_count = db_session.query(Product).filter_by(tenant_id=tenant_id).count()
+            products_count = db_session.query(Product).count()
 
             # Get recent media buys
             recent_buys = (
@@ -71,7 +69,7 @@ def dashboard(tenant_id):
                 # Calculate revenue for this date
                 daily_buys = (
                     db_session.query(MediaBuy)
-                    .filter_by(tenant_id=tenant_id)
+                    
                     .filter(MediaBuy.start_date <= date)
                     .filter(MediaBuy.end_date >= date)
                     .filter(MediaBuy.status.in_(["active", "completed"]))
@@ -97,14 +95,14 @@ def dashboard(tenant_id):
             )
 
             # Calculate pending buys
-            pending_buys = db_session.query(MediaBuy).filter_by(tenant_id=tenant_id, status="pending").count()
+            pending_buys = db_session.query(MediaBuy).filter_by(status="pending").count()
 
             # Calculate tasks metrics
             open_tasks = 0  # Could be calculated from human_tasks table if needed
             overdue_tasks = 0  # Could be calculated from human_tasks with due dates
 
             # Calculate advertiser metrics
-            active_advertisers = db_session.query(Principal).filter_by(tenant_id=tenant_id).count()
+            active_advertisers = db_session.query(Principal).count()
 
             # Calculate metrics for the template
             metrics = {
@@ -139,9 +137,6 @@ def dashboard(tenant_id):
                 recent_media_buys_list.append(media_buy)
 
             return render_template(
-                "tenant_dashboard.html",
-                tenant=tenant,
-                tenant_id=tenant_id,
                 active_campaigns=active_campaigns,
                 total_spend=total_spend_amount,
                 principals_count=principals_count,
@@ -152,8 +147,7 @@ def dashboard(tenant_id):
                 revenue_data=json.dumps(revenue_data),
                 chart_labels=chart_labels,
                 chart_data=chart_data,
-                metrics=metrics,
-            )
+                metrics=metrics)
 
     except Exception as e:
         logger.error(f"Error loading tenant dashboard: {e}", exc_info=True)
@@ -163,12 +157,11 @@ def dashboard(tenant_id):
 
 @tenants_bp.route("/<tenant_id>/settings")
 @tenants_bp.route("/<tenant_id>/settings/<section>")
-@require_tenant_access()
 def settings(tenant_id, section=None):
     """Show tenant settings page."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("core.index"))
@@ -182,22 +175,17 @@ def settings(tenant_id, section=None):
                 oauth_configured = bool(adapter_config_obj.gam_refresh_token)
 
             return render_template(
-                "tenant_settings.html",
-                tenant=tenant,
-                tenant_id=tenant_id,
                 section=section or "general",
                 adapter_config=adapter_config_obj,
-                oauth_configured=oauth_configured,
-            )
+                oauth_configured=oauth_configured)
 
     except Exception as e:
         logger.error(f"Error loading tenant settings: {e}", exc_info=True)
         flash("Error loading settings", "error")
-        return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+        return redirect(url_for("tenants.dashboard"))
 
 
 @tenants_bp.route("/<tenant_id>/update", methods=["POST"])
-@require_tenant_access()
 def update(tenant_id):
     """Update tenant settings."""
     try:
@@ -209,10 +197,10 @@ def update(tenant_id):
         if not is_valid:
             for error in errors:
                 flash(error, "error")
-            return redirect(url_for("tenants.settings", tenant_id=tenant_id))
+            return redirect(url_for("tenants.settings"))
 
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("core.index"))
@@ -230,11 +218,10 @@ def update(tenant_id):
         logger.error(f"Error updating tenant: {e}", exc_info=True)
         flash("Error updating tenant", "error")
 
-    return redirect(url_for("tenants.settings", tenant_id=tenant_id))
+    return redirect(url_for("tenants.settings"))
 
 
 @tenants_bp.route("/<tenant_id>/update_slack", methods=["POST"])
-@require_tenant_access()
 def update_slack(tenant_id):
     """Update tenant Slack settings."""
     try:
@@ -243,7 +230,7 @@ def update_slack(tenant_id):
         webhook_url = form_data.get("slack_webhook_url", "").strip()
 
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("core.index"))
@@ -259,16 +246,15 @@ def update_slack(tenant_id):
         logger.error(f"Error updating Slack settings: {e}", exc_info=True)
         flash("Error updating Slack settings", "error")
 
-    return redirect(url_for("tenants.settings", tenant_id=tenant_id, section="slack"))
+    return redirect(url_for("tenants.settings", section="slack"))
 
 
 @tenants_bp.route("/<tenant_id>/test_slack", methods=["POST"])
-@require_tenant_access()
 def test_slack(tenant_id):
     """Test Slack webhook."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 return jsonify({"success": False, "error": "Tenant not found"}), 404
 
@@ -301,8 +287,7 @@ def test_slack(tenant_id):
                         },
                     ],
                 },
-                timeout=5,
-            )
+                timeout=5)
 
             if response.status_code == 200:
                 return jsonify({"success": True, "message": "Test message sent successfully"})
@@ -311,8 +296,7 @@ def test_slack(tenant_id):
                     jsonify(
                         {"success": False, "error": f"Slack returned status {response.status_code}: {response.text}"}
                     ),
-                    400,
-                )
+                    400)
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Error testing Slack webhook: {e}")
@@ -342,7 +326,7 @@ def update_tenant(tenant_id):
             human_review_required = request.form.get("human_review_required") == "true"
 
             # Find and update tenant
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if tenant:
                 tenant.max_daily_budget = max_daily_budget
                 tenant.enable_aee_signals = enable_aee_signals
@@ -354,42 +338,36 @@ def update_tenant(tenant_id):
             else:
                 flash("Tenant not found", "error")
 
-            return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+            return redirect(url_for("tenants.dashboard"))
         except Exception as e:
             flash(f"Error updating configuration: {str(e)}", "error")
-            return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+            return redirect(url_for("tenants.dashboard"))
 
 
 @tenants_bp.route("/<tenant_id>/users")
-@require_tenant_access()
 def list_users(tenant_id):
     """List users for a tenant."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("core.index"))
 
             users = (
-                db_session.query(User).filter_by(tenant_id=tenant_id).order_by(User.is_admin.desc(), User.email).all()
+                db_session.query(User).order_by(User.is_admin.desc(), User.email).all()
             )
 
             return render_template(
-                "users.html",
-                tenant=tenant,
-                tenant_id=tenant_id,
-                users=users,
-            )
+                users=users)
 
     except Exception as e:
         logger.error(f"Error loading users: {e}", exc_info=True)
         flash("Error loading users", "error")
-        return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+        return redirect(url_for("tenants.dashboard"))
 
 
 @tenants_bp.route("/<tenant_id>/users/add", methods=["POST"])
-@require_tenant_access()
 def add_user(tenant_id):
     """Add a new user to tenant."""
     try:
@@ -401,26 +379,24 @@ def add_user(tenant_id):
         if not is_valid:
             for error in errors:
                 flash(error, "error")
-            return redirect(url_for("tenants.list_users", tenant_id=tenant_id))
+            return redirect(url_for("tenants.list_users"))
 
         with get_db_session() as db_session:
             # Check if user already exists
-            existing = db_session.query(User).filter_by(tenant_id=tenant_id, email=form_data["email"].lower()).first()
+            existing = db_session.query(User).filter_by(email=form_data["email"].lower()).first()
             if existing:
                 flash("User already exists", "error")
-                return redirect(url_for("tenants.list_users", tenant_id=tenant_id))
+                return redirect(url_for("tenants.list_users"))
 
             # Create new user
             user = User(
                 user_id=str(uuid.uuid4()),
-                tenant_id=tenant_id,
                 email=form_data["email"].lower(),
                 name=form_data["name"],
                 is_admin=form_data.get("is_admin") == "on",
                 is_active=True,
                 created_at=datetime.now(UTC),
-                updated_at=datetime.now(UTC),
-            )
+                updated_at=datetime.now(UTC))
             db_session.add(user)
             db_session.commit()
 
@@ -430,19 +406,18 @@ def add_user(tenant_id):
         logger.error(f"Error adding user: {e}", exc_info=True)
         flash("Error adding user", "error")
 
-    return redirect(url_for("tenants.list_users", tenant_id=tenant_id))
+    return redirect(url_for("tenants.list_users"))
 
 
 @tenants_bp.route("/<tenant_id>/users/<user_id>/toggle", methods=["POST"])
-@require_tenant_access()
 def toggle_user(tenant_id, user_id):
     """Toggle user active status."""
     try:
         with get_db_session() as db_session:
-            user = db_session.query(User).filter_by(tenant_id=tenant_id, user_id=user_id).first()
+            user = db_session.query(User).filter_by(user_id=user_id).first()
             if not user:
                 flash("User not found", "error")
-                return redirect(url_for("tenants.list_users", tenant_id=tenant_id))
+                return redirect(url_for("tenants.list_users"))
 
             user.is_active = not user.is_active
             user.updated_at = datetime.now(UTC)
@@ -455,19 +430,18 @@ def toggle_user(tenant_id, user_id):
         logger.error(f"Error toggling user: {e}", exc_info=True)
         flash("Error updating user", "error")
 
-    return redirect(url_for("tenants.list_users", tenant_id=tenant_id))
+    return redirect(url_for("tenants.list_users"))
 
 
 @tenants_bp.route("/<tenant_id>/users/<user_id>/update_role", methods=["POST"])
-@require_tenant_access()
 def update_user_role(tenant_id, user_id):
     """Update user admin role."""
     try:
         with get_db_session() as db_session:
-            user = db_session.query(User).filter_by(tenant_id=tenant_id, user_id=user_id).first()
+            user = db_session.query(User).filter_by(user_id=user_id).first()
             if not user:
                 flash("User not found", "error")
-                return redirect(url_for("tenants.list_users", tenant_id=tenant_id))
+                return redirect(url_for("tenants.list_users"))
 
             user.is_admin = request.form.get("is_admin") == "on"
             user.updated_at = datetime.now(UTC)
@@ -480,11 +454,10 @@ def update_user_role(tenant_id, user_id):
         logger.error(f"Error updating user role: {e}", exc_info=True)
         flash("Error updating user", "error")
 
-    return redirect(url_for("tenants.list_users", tenant_id=tenant_id))
+    return redirect(url_for("tenants.list_users"))
 
 
 @tenants_bp.route("/<tenant_id>/principals/create", methods=["GET", "POST"])
-@require_tenant_access()
 def create_principal(tenant_id):
     """Create a new principal (advertiser) for the tenant."""
     if request.method == "POST":
@@ -497,7 +470,7 @@ def create_principal(tenant_id):
             if not is_valid:
                 for error in errors:
                     flash(error, "error")
-                    return redirect(url_for("tenants.create_principal", tenant_id=tenant_id))
+                    return redirect(url_for("tenants.create_principal"))
 
             with get_db_session() as db_session:
                 # Create principal
@@ -508,7 +481,7 @@ def create_principal(tenant_id):
                 platform_mappings = {}
 
                 # Get tenant to check adapter type
-                tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+                tenant = db_session.query(Tenant).first()
                 if tenant and tenant.adapter_config:
                     adapter_config_obj = tenant.adapter_config
 
@@ -523,26 +496,25 @@ def create_principal(tenant_id):
 
                 principal = Principal(
                     principal_id=principal_id,
-                    tenant_id=tenant_id,
+                    ,
                     name=form_data["name"],
                     access_token=access_token,
-                    platform_mappings=json.dumps(platform_mappings) if platform_mappings else "{}",
-                )
+                    platform_mappings=json.dumps(platform_mappings) if platform_mappings else "{}")
                 db_session.add(principal)
                 db_session.commit()
 
                 flash(f"Advertiser '{principal.name}' created successfully", "success")
-                return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+                return redirect(url_for("tenants.dashboard"))
 
         except Exception as e:
             logger.error(f"Error creating principal: {e}", exc_info=True)
             flash("Error creating advertiser", "error")
-            return redirect(url_for("tenants.create_principal", tenant_id=tenant_id))
+            return redirect(url_for("tenants.create_principal"))
 
     # GET request - show form
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("core.index"))
@@ -553,20 +525,15 @@ def create_principal(tenant_id):
                 gam_enabled = tenant.adapter_config.adapter_type == "google_ad_manager"
 
             return render_template(
-                "create_principal.html",
-                tenant=tenant,
-                tenant_id=tenant_id,
-                gam_enabled=gam_enabled,
-            )
+                gam_enabled=gam_enabled)
 
     except Exception as e:
         logger.error(f"Error loading create principal form: {e}", exc_info=True)
         flash("Error loading form", "error")
-        return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+        return redirect(url_for("tenants.dashboard"))
 
 
 @tenants_bp.route("/<tenant_id>/principal/<principal_id>/update_mappings", methods=["POST"])
-@require_tenant_access()
 def update_principal_mappings(tenant_id, principal_id):
     """Update principal platform mappings."""
     try:
@@ -574,7 +541,7 @@ def update_principal_mappings(tenant_id, principal_id):
         form_data = sanitize_form_data(request.form.to_dict())
 
         with get_db_session() as db_session:
-            principal = db_session.query(Principal).filter_by(tenant_id=tenant_id, principal_id=principal_id).first()
+            principal = db_session.query(Principal).filter_by(principal_id=principal_id).first()
             if not principal:
                 return jsonify({"error": "Principal not found"}), 404
 

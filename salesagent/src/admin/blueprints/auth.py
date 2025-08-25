@@ -52,8 +52,7 @@ def init_oauth(app):
             client_id=client_id,
             client_secret=client_secret,
             server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-            client_kwargs={"scope": "openid email profile"},
-        )
+            client_kwargs={"scope": "openid email profile"})
         app.oauth = oauth
         return oauth
     else:
@@ -72,16 +71,14 @@ def tenant_login(tenant_id):
     """Show tenant-specific login page."""
     # Verify tenant exists
     with get_db_session() as db_session:
-        tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+        tenant = db_session.query(Tenant).first()
         if not tenant:
             abort(404)
 
     return render_template(
         "login.html",
-        tenant_id=tenant_id,
         tenant_name=tenant.name,
-        test_mode=os.environ.get("ADCP_AUTH_TEST_MODE", "").lower() == "true",
-    )
+        test_mode=os.environ.get("ADCP_AUTH_TEST_MODE", "").lower() == "true")
 
 
 @auth_bp.route("/auth/google")
@@ -102,7 +99,7 @@ def tenant_google_auth(tenant_id):
     oauth = current_app.oauth if hasattr(current_app, "oauth") else None
     if not oauth:
         flash("OAuth not configured", "error")
-        return redirect(url_for("auth.tenant_login", tenant_id=tenant_id))
+        return redirect(url_for("auth.tenant_login"))
 
     # Store tenant_id in session for callback
     session["oauth_tenant_id"] = tenant_id
@@ -149,7 +146,7 @@ def google_callback():
         if tenant_id:
             # Verify user has access to this tenant
             with get_db_session() as db_session:
-                tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+                tenant = db_session.query(Tenant).first()
                 if not tenant:
                     flash("Invalid tenant", "error")
                     return redirect(url_for("auth.login"))
@@ -160,21 +157,21 @@ def google_callback():
                     session["tenant_name"] = tenant.name
                     session["is_super_admin"] = True
                     flash(f"Welcome {user.get('name', email)}! (Super Admin)", "success")
-                    return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+                    return redirect(url_for("tenants.dashboard"))
 
                 # Check if user has access to this tenant
-                user_record = db_session.query(User).filter_by(email=email, tenant_id=tenant_id, is_active=True).first()
+                user_record = db_session.query(User).filter_by(email=email, is_active=True).first()
 
                 if user_record:
                     session["tenant_id"] = tenant_id
                     session["tenant_name"] = tenant.name
                     session["is_tenant_admin"] = user_record.is_admin
                     flash(f"Welcome {user.get('name', email)}!", "success")
-                    return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+                    return redirect(url_for("tenants.dashboard"))
                 else:
                     flash("You don't have access to this tenant", "error")
                     session.clear()
-                    return redirect(url_for("auth.tenant_login", tenant_id=tenant_id))
+                    return redirect(url_for("auth.tenant_login"))
 
         # Regular login flow - check if super admin
         if is_super_admin(email):
@@ -240,7 +237,7 @@ def select_tenant():
                 session["is_tenant_admin"] = tenant["is_admin"]
                 session.pop("available_tenants", None)  # Clean up
                 flash(f"Welcome to {tenant['name']}!", "success")
-                return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+                return redirect(url_for("tenants.dashboard"))
 
         flash("Invalid tenant selection", "error")
         return redirect(url_for("auth.select_tenant"))
@@ -300,7 +297,7 @@ def test_auth():
 
         if tenant_id:
             session["test_tenant_id"] = tenant_id
-            return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+            return redirect(url_for("tenants.dashboard"))
         else:
             return redirect(url_for("core.index"))
 
@@ -321,7 +318,7 @@ def test_auth():
 
         if tenant_id:
             session["test_tenant_id"] = tenant_id
-            return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+            return redirect(url_for("tenants.dashboard"))
         else:
             return redirect(url_for("core.index"))
 

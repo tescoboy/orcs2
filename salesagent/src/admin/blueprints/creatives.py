@@ -23,7 +23,7 @@ def discover_creative_formats_from_url(url):
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from sqlalchemy import or_
 
-from src.admin.utils import require_tenant_access
+
 from src.core.database.database_session import get_db_session
 from src.core.database.models import CreativeFormat, Tenant
 
@@ -34,15 +34,15 @@ creatives_bp = Blueprint("creatives", __name__)
 
 
 @creatives_bp.route("/", methods=["GET"])
-@require_tenant_access()
-def index(tenant_id, **kwargs):
+def index():
     """List creative formats (both standard and custom)."""
     with get_db_session() as db_session:
-        # Get tenant name
-        tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+        # For demo, use first tenant or create default
+        tenant = db_session.query(Tenant).first()
         if not tenant:
-            return "Tenant not found", 404
+            return "No tenants found", 404
 
+        tenant_id = tenant.tenant_id
         tenant_name = tenant.name
 
         # Get all formats (standard + custom for this tenant)
@@ -74,23 +74,21 @@ def index(tenant_id, **kwargs):
             formats.append(format_info)
 
     return render_template(
-        "creative_formats.html",
-        tenant_id=tenant_id,
         tenant_name=tenant_name,
-        formats=formats,
-    )
+        formats=formats)
 
 
 @creatives_bp.route("/add/ai", methods=["GET"])
-@require_tenant_access()
-def add_ai(tenant_id, **kwargs):
+def add_ai():
     """Show AI-assisted creative format discovery form."""
-    return render_template("creative_format_ai.html", tenant_id=tenant_id)
+    with get_db_session() as db_session:
+        tenant = db_session.query(Tenant).first()
+        tenant_id = tenant.tenant_id if tenant else "demo"
+    return render_template("creative_format_ai.html")
 
 
 @creatives_bp.route("/analyze", methods=["POST"])
-@require_tenant_access()
-def analyze(tenant_id, **kwargs):
+def analyze():
     """Analyze creative format with AI."""
     try:
         url = request.form.get("url", "").strip()
@@ -111,8 +109,7 @@ def analyze(tenant_id, **kwargs):
 
 
 @creatives_bp.route("/save", methods=["POST"])
-@require_tenant_access()
-def save(tenant_id, **kwargs):
+def save():
     """Save a creative format to the database."""
     try:
         data = request.get_json()
@@ -122,8 +119,12 @@ def save(tenant_id, **kwargs):
         format_id = f"fmt_{uuid.uuid4().hex[:8]}"
 
         with get_db_session() as db_session:
+            # For demo, use first tenant
+            tenant = db_session.query(Tenant).first()
+            tenant_id = tenant.tenant_id if tenant else "demo"
+            
             # Check if format already exists
-            existing = db_session.query(CreativeFormat).filter_by(name=data.get("name"), tenant_id=tenant_id).first()
+            existing = db_session.query(CreativeFormat).filter_by(name=data.get("name")).first()
 
             if existing:
                 return jsonify({"error": f"Format '{data.get('name')}' already exists"}), 400
@@ -131,7 +132,6 @@ def save(tenant_id, **kwargs):
             # Create new format
             creative_format = CreativeFormat(
                 format_id=format_id,
-                tenant_id=tenant_id,
                 name=data.get("name"),
                 type=data.get("type"),
                 description=data.get("description"),
@@ -143,8 +143,7 @@ def save(tenant_id, **kwargs):
                 is_standard=False,
                 source_url=data.get("source_url"),
                 created_at=datetime.now(UTC),
-                updated_at=datetime.now(UTC),
-            )
+                updated_at=datetime.now(UTC))
 
             db_session.add(creative_format)
             db_session.commit()
@@ -157,24 +156,22 @@ def save(tenant_id, **kwargs):
 
 
 @creatives_bp.route("/sync-standard", methods=["POST"])
-@require_tenant_access()
-def sync_standard(tenant_id, **kwargs):
+def sync_standard():
     """Sync standard formats from adcontextprotocol.org."""
     try:
         # This would normally fetch from the protocol site
         # For now, return success
         flash("Standard formats synced successfully", "success")
-        return redirect(url_for("creatives.index", tenant_id=tenant_id))
+        return redirect(url_for("creatives.index"))
 
     except Exception as e:
         logger.error(f"Error syncing standard formats: {e}", exc_info=True)
         flash(f"Error syncing formats: {str(e)}", "error")
-        return redirect(url_for("creatives.index", tenant_id=tenant_id))
+        return redirect(url_for("creatives.index"))
 
 
 @creatives_bp.route("/discover", methods=["POST"])
-@require_tenant_access()
-def discover(tenant_id, **kwargs):
+def discover():
     """Discover multiple creative formats from a URL."""
     try:
         data = request.get_json()
@@ -197,8 +194,7 @@ def discover(tenant_id, **kwargs):
 
 
 @creatives_bp.route("/save-multiple", methods=["POST"])
-@require_tenant_access()
-def save_multiple(tenant_id, **kwargs):
+def save_multiple():
     """Save multiple discovered creative formats to the database."""
     try:
         data = request.get_json()
@@ -212,11 +208,15 @@ def save_multiple(tenant_id, **kwargs):
         errors = []
 
         with get_db_session() as db_session:
+            # For demo, use first tenant
+            tenant = db_session.query(Tenant).first()
+            tenant_id = tenant.tenant_id if tenant else "demo"
+            
             for format_data in formats:
                 # Check if format already exists
                 existing = (
                     db_session.query(CreativeFormat)
-                    .filter_by(name=format_data.get("name"), tenant_id=tenant_id)
+                    .filter_by(name=format_data.get("name"))
                     .first()
                 )
 
@@ -228,7 +228,6 @@ def save_multiple(tenant_id, **kwargs):
                     format_id = f"fmt_{uuid.uuid4().hex[:8]}"
                     creative_format = CreativeFormat(
                         format_id=format_id,
-                        tenant_id=tenant_id,
                         name=format_data.get("name"),
                         type=format_data.get("type"),
                         description=format_data.get("description"),
@@ -240,8 +239,7 @@ def save_multiple(tenant_id, **kwargs):
                         is_standard=False,
                         source_url=format_data.get("source_url"),
                         created_at=datetime.now(UTC),
-                        updated_at=datetime.now(UTC),
-                    )
+                        updated_at=datetime.now(UTC))
 
                     db_session.add(creative_format)
                     saved_count += 1
@@ -266,8 +264,7 @@ def save_multiple(tenant_id, **kwargs):
 
 
 @creatives_bp.route("/<format_id>", methods=["GET"])
-@require_tenant_access()
-def get_format(tenant_id, format_id, **kwargs):
+def get_format(format_id):
     """Get a specific creative format for editing."""
     with get_db_session() as db_session:
         creative_format = db_session.query(CreativeFormat).filter_by(format_id=format_id).first()
@@ -275,9 +272,7 @@ def get_format(tenant_id, format_id, **kwargs):
         if not creative_format:
             return jsonify({"error": "Format not found"}), 404
 
-        # Check access
-        if creative_format.tenant_id and creative_format.tenant_id != tenant_id:
-            return jsonify({"error": "Access denied"}), 403
+
 
         format_data = {
             "format_id": creative_format.format_id,
@@ -297,20 +292,14 @@ def get_format(tenant_id, format_id, **kwargs):
 
 
 @creatives_bp.route("/<format_id>/edit", methods=["GET"])
-@require_tenant_access()
-def edit_format(tenant_id, format_id, **kwargs):
+def edit_format(format_id):
     """Display the edit creative format page."""
     with get_db_session() as db_session:
         creative_format = db_session.query(CreativeFormat).filter_by(format_id=format_id).first()
 
         if not creative_format:
             flash("Format not found", "error")
-            return redirect(url_for("creatives.index", tenant_id=tenant_id))
-
-        # Check access
-        if creative_format.tenant_id and creative_format.tenant_id != tenant_id:
-            flash("Access denied", "error")
-            return redirect(url_for("creatives.index", tenant_id=tenant_id))
+            return redirect(url_for("creatives.index"))
 
         # Prepare format data for template
         format_data = {
@@ -328,20 +317,17 @@ def edit_format(tenant_id, format_id, **kwargs):
         }
 
         # Get tenant name
-        tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
-        tenant_name = tenant.name if tenant else ""
+        tenant = db_session.query(Tenant).first()
+        tenant_id = tenant.tenant_id if tenant else "demo"
+        tenant_name = tenant.name if tenant else "Demo"
 
     return render_template(
-        "edit_creative_format.html",
-        tenant_id=tenant_id,
         tenant_name=tenant_name,
-        format=format_data,
-    )
+        format=format_data)
 
 
 @creatives_bp.route("/<format_id>/update", methods=["POST"])
-@require_tenant_access()
-def update_format(tenant_id, format_id, **kwargs):
+def update_format(format_id):
     """Update a creative format."""
     try:
         data = request.get_json()
@@ -353,10 +339,6 @@ def update_format(tenant_id, format_id, **kwargs):
 
             if not creative_format:
                 return jsonify({"error": "Format not found"}), 404
-
-            # Check access
-            if creative_format.tenant_id and creative_format.tenant_id != tenant_id:
-                return jsonify({"error": "Access denied"}), 403
 
             # Don't allow editing standard formats
             if creative_format.is_standard:
@@ -383,8 +365,7 @@ def update_format(tenant_id, format_id, **kwargs):
 
 
 @creatives_bp.route("/<format_id>/delete", methods=["POST"])
-@require_tenant_access()
-def delete_format(tenant_id, format_id, **kwargs):
+def delete_format(format_id):
     """Delete a creative format."""
     try:
         with get_db_session() as db_session:
@@ -392,10 +373,6 @@ def delete_format(tenant_id, format_id, **kwargs):
 
             if not creative_format:
                 return jsonify({"error": "Format not found"}), 404
-
-            # Check access
-            if creative_format.tenant_id and creative_format.tenant_id != tenant_id:
-                return jsonify({"error": "Access denied"}), 403
 
             # Don't allow deleting standard formats
             if creative_format.is_standard:
@@ -405,9 +382,9 @@ def delete_format(tenant_id, format_id, **kwargs):
             db_session.commit()
 
             flash("Creative format deleted successfully", "success")
-            return redirect(url_for("creatives.index", tenant_id=tenant_id))
+            return redirect(url_for("creatives.index"))
 
     except Exception as e:
         logger.error(f"Error deleting creative format: {e}", exc_info=True)
         flash(f"Error deleting format: {str(e)}", "error")
-        return redirect(url_for("creatives.index", tenant_id=tenant_id))
+        return redirect(url_for("creatives.index"))

@@ -56,13 +56,11 @@ def revenue_chart_api(tenant_id):
             db_session.query(Principal.name, func.sum(MediaBuy.budget).label("revenue"))
             .join(
                 MediaBuy,
-                (MediaBuy.principal_id == Principal.principal_id) & (MediaBuy.tenant_id == Principal.tenant_id),
-            )
+                (MediaBuy.principal_id == Principal.principal_id) & (MediaBuy.tenant_id == Principal.tenant_id))
             .filter(
                 MediaBuy.tenant_id == tenant_id,
                 MediaBuy.created_at >= date_start,
-                MediaBuy.status.in_(["active", "completed"]),
-            )
+                MediaBuy.status.in_(["active", "completed"]))
             .group_by(Principal.name)
             .order_by(func.sum(MediaBuy.budget).desc())
             .limit(10)
@@ -123,8 +121,7 @@ def oauth_status():
                     "error": f"Error checking OAuth configuration: {str(e)}",
                 }
             ),
-            500,
-        )
+            500)
 
 
 @api_bp.route("/tenant/<tenant_id>/products/suggestions", methods=["GET"])
@@ -134,8 +131,7 @@ def get_product_suggestions(tenant_id):
     try:
         from src.services.default_products import (
             get_default_products,
-            get_industry_specific_products,
-        )
+            get_industry_specific_products)
 
         # Get query parameters
         industry = request.args.get("industry")
@@ -195,7 +191,7 @@ def get_product_suggestions(tenant_id):
 
         # Check existing products to mark which are already created
         with get_db_session() as db_session:
-            existing_products = db_session.query(Product.product_id).filter_by(tenant_id=tenant_id).all()
+            existing_products = db_session.query(Product.product_id).all()
             existing_ids = {product[0] for product in existing_products}
 
         # Add metadata to suggestions
@@ -257,8 +253,7 @@ def quick_create_products(tenant_id):
 
         from src.services.default_products import (
             get_default_products,
-            get_industry_specific_products,
-        )
+            get_industry_specific_products)
 
         # Get all available templates
         all_templates = get_default_products()
@@ -283,7 +278,7 @@ def quick_create_products(tenant_id):
                 try:
                     # Check if already exists
                     existing_product = (
-                        db_session.query(Product).filter_by(tenant_id=tenant_id, product_id=product_id).first()
+                        db_session.query(Product).filter_by(product_id=product_id).first()
                     )
                     if existing_product:
                         errors.append(f"Product already exists: {product_id}")
@@ -358,7 +353,6 @@ def quick_create_products(tenant_id):
 
                     new_product = Product(
                         product_id=template["product_id"],
-                        tenant_id=tenant_id,
                         name=template["name"],
                         description=template.get("description", ""),
                         formats=format_objects,  # Use converted format objects
@@ -418,8 +412,7 @@ def mcp_test_call():
         if not all([server_url, tool_name, auth_token]):
             return (
                 jsonify({"success": False, "error": "Missing required fields: server_url, tool, and access_token"}),
-                400,
-            )
+                400)
 
         # Get tenant from token
         with get_db_session() as db_session:
@@ -502,8 +495,7 @@ def test_gam_connection():
         if not oauth_config.get("client_id") or not oauth_config.get("client_secret"):
             return (
                 jsonify({"error": "GAM OAuth credentials not configured in Settings"}),
-                400,
-            )
+                400)
 
         # Test by creating credentials and making a simple API call
         from googleads import ad_manager, oauth2
@@ -512,8 +504,7 @@ def test_gam_connection():
         oauth2_client = oauth2.GoogleRefreshTokenClient(
             client_id=oauth_config["client_id"],
             client_secret=oauth_config["client_secret"],
-            refresh_token=refresh_token,
-        )
+            refresh_token=refresh_token)
 
         # Test if credentials are valid by trying to refresh
         try:

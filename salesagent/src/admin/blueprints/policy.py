@@ -29,7 +29,7 @@ def index(tenant_id):
 
     with get_db_session() as db_session:
         # Get tenant info
-        tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+        tenant = db_session.query(Tenant).first()
         if not tenant:
             return "Tenant not found", 404
 
@@ -72,7 +72,7 @@ def index(tenant_id):
         # Get recent policy checks from audit log
         audit_logs = (
             db_session.query(AuditLog)
-            .filter_by(tenant_id=tenant_id, operation="policy_check")
+            .filter_by(operation="policy_check")
             .order_by(AuditLog.timestamp.desc())
             .limit(20)
             .all()
@@ -98,7 +98,7 @@ def index(tenant_id):
         try:
             workflow_steps = (
                 db_session.query(WorkflowStep)
-                .filter_by(tenant_id=tenant_id, step_type="policy_review", status="pending")
+                .filter_by(step_type="policy_review", status="pending")
                 .order_by(WorkflowStep.created_at.desc())
                 .all()
             )
@@ -118,13 +118,10 @@ def index(tenant_id):
             pass
 
     return render_template(
-        "policy_settings_comprehensive.html",
-        tenant_id=tenant_id,
         tenant_name=tenant_name,
         policy_settings=policy_settings,
         recent_checks=recent_checks,
-        pending_reviews=pending_reviews,
-    )
+        pending_reviews=pending_reviews)
 
 
 @policy_bp.route("/update", methods=["POST"])
@@ -167,8 +164,7 @@ def update(tenant_id):
                     "adult_content",
                     "misleading_health_claims",
                     "financial_scams",
-                ],
-            ),
+                ]),
             "default_prohibited_tactics": config.get("policy_settings", {}).get(
                 "default_prohibited_tactics",
                 [
@@ -177,20 +173,19 @@ def update(tenant_id):
                     "deceptive_claims",
                     "impersonation",
                     "privacy_violations",
-                ],
-            ),
+                ]),
         }
 
         config["policy_settings"] = policy_settings
 
         # Update database
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if tenant:
                 tenant.policy_settings = json.dumps(policy_settings)
                 db_session.commit()
 
-        return redirect(url_for("policy.index", tenant_id=tenant_id))
+        return redirect(url_for("policy.index"))
 
     except Exception as e:
         return f"Error: {e}", 400
@@ -200,7 +195,7 @@ def update(tenant_id):
 @require_auth()
 def rules(tenant_id):
     """Redirect old policy rules URL to new comprehensive policy settings page."""
-    return redirect(url_for("policy.index", tenant_id=tenant_id))
+    return redirect(url_for("policy.index"))
 
 
 @policy_bp.route("/review/<task_id>", methods=["GET", "POST"])
@@ -222,7 +217,7 @@ def review_task(tenant_id, task_id):
 
             try:
                 # Get the workflow step
-                step = db_session.query(WorkflowStep).filter_by(tenant_id=tenant_id, step_id=task_id).first()
+                step = db_session.query(WorkflowStep).filter_by(step_id=task_id).first()
 
                 if not step:
                     return "Task not found", 404
@@ -239,15 +234,12 @@ def review_task(tenant_id, task_id):
 
                 # Log the action
                 audit_logger = AuditLogger()
-                audit_logger.log(
-                    tenant_id=tenant_id,
-                    operation="policy_review",
+                audit_logger.log(operation="policy_review",
                     principal_id=session.get("user"),
                     success=True,
-                    details={"task_id": task_id, "action": action, "notes": notes},
-                )
+                    details={"task_id": task_id, "action": action, "notes": notes})
 
-                return redirect(url_for("policy.index", tenant_id=tenant_id))
+                return redirect(url_for("policy.index"))
 
             except Exception as e:
                 logger.error(f"Error updating policy task: {e}")
@@ -255,7 +247,7 @@ def review_task(tenant_id, task_id):
 
         # GET request - show review form
         try:
-            step = db_session.query(WorkflowStep).filter_by(tenant_id=tenant_id, step_id=task_id).first()
+            step = db_session.query(WorkflowStep).filter_by(step_id=task_id).first()
 
             if not step:
                 return "Task not found", 404
@@ -263,12 +255,9 @@ def review_task(tenant_id, task_id):
             details = json.loads(step.data) if step.data else {}
 
             return render_template(
-                "policy_review.html",
-                tenant_id=tenant_id,
                 task_id=task_id,
                 task_details=details,
-                created_at=step.created_at,
-            )
+                created_at=step.created_at)
 
         except Exception as e:
             logger.error(f"Error loading policy task: {e}")

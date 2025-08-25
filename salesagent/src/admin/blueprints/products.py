@@ -8,7 +8,7 @@ import uuid
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
-from src.admin.utils import require_tenant_access
+
 from src.core.database.database_session import get_db_session
 from src.core.database.models import Product, Tenant
 from src.core.validation import sanitize_form_data
@@ -22,17 +22,16 @@ products_bp = Blueprint("products", __name__)
 
 
 @products_bp.route("/")
-@require_tenant_access()
 def list_products(tenant_id):
     """List all products for a tenant."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("core.index"))
 
-            products = db_session.query(Product).filter_by(tenant_id=tenant_id).order_by(Product.name).all()
+            products = db_session.query(Product).order_by(Product.name).all()
 
             # Convert products to dict format for template
             products_list = []
@@ -60,20 +59,15 @@ def list_products(tenant_id):
                 products_list.append(product_dict)
 
             return render_template(
-                "products.html",
-                tenant=tenant,
-                tenant_id=tenant_id,
-                products=products_list,
-            )
+                products=products_list)
 
     except Exception as e:
         logger.error(f"Error loading products: {e}", exc_info=True)
         flash("Error loading products", "error")
-        return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+        return redirect(url_for("tenants.dashboard"))
 
 
 @products_bp.route("/add", methods=["GET", "POST"])
-@require_tenant_access()
 def add_product(tenant_id):
     """Add a new product."""
     if request.method == "POST":
@@ -84,7 +78,7 @@ def add_product(tenant_id):
             # Validate required fields
             if not form_data.get("name"):
                 flash("Product name is required", "error")
-                return redirect(url_for("products.add_product", tenant_id=tenant_id))
+                return redirect(url_for("products.add_product"))
 
             with get_db_session() as db_session:
                 # Parse formats - expecting multiple checkbox values
@@ -118,7 +112,7 @@ def add_product(tenant_id):
                 # Create product with correct fields matching the Product model
                 product = Product(
                     product_id=form_data.get("product_id") or f"prod_{uuid.uuid4().hex[:8]}",
-                    tenant_id=tenant_id,
+                    ,
                     name=form_data["name"],
                     description=form_data.get("description", ""),
                     formats=formats,  # List, not JSON string
@@ -128,33 +122,31 @@ def add_product(tenant_id):
                     cpm=cpm,
                     price_guidance=price_guidance,
                     targeting_template={},  # Empty targeting template
-                    implementation_config=None,
-                )
+                    implementation_config=None)
                 db_session.add(product)
                 db_session.commit()
 
                 flash(f"Product '{product.name}' created successfully", "success")
-                return redirect(url_for("products.list_products", tenant_id=tenant_id))
+                return redirect(url_for("products.list_products"))
 
         except Exception as e:
             logger.error(f"Error creating product: {e}", exc_info=True)
             flash("Error creating product", "error")
-            return redirect(url_for("products.add_product", tenant_id=tenant_id))
+            return redirect(url_for("products.add_product"))
 
     # GET request - show form
-    return render_template("add_product.html", tenant_id=tenant_id)
+    return render_template("add_product.html")
 
 
 @products_bp.route("/<product_id>/edit", methods=["GET", "POST"])
-@require_tenant_access()
 def edit_product(tenant_id, product_id):
     """Edit an existing product."""
     try:
         with get_db_session() as db_session:
-            product = db_session.query(Product).filter_by(tenant_id=tenant_id, product_id=product_id).first()
+            product = db_session.query(Product).filter_by(product_id=product_id).first()
             if not product:
                 flash("Product not found", "error")
-                return redirect(url_for("products.list_products", tenant_id=tenant_id))
+                return redirect(url_for("products.list_products"))
 
             if request.method == "POST":
                 # Sanitize form data
@@ -192,7 +184,7 @@ def edit_product(tenant_id, product_id):
                 db_session.commit()
 
                 flash(f"Product '{product.name}' updated successfully", "success")
-                return redirect(url_for("products.list_products", tenant_id=tenant_id))
+                return redirect(url_for("products.list_products"))
 
             # GET request - show form
             product_dict = {
@@ -216,26 +208,21 @@ def edit_product(tenant_id, product_id):
             }
 
             return render_template(
-                "edit_product.html",
-                tenant_id=tenant_id,
-                product=product_dict,
-            )
+                product=product_dict)
 
     except Exception as e:
         logger.error(f"Error editing product: {e}", exc_info=True)
         flash("Error editing product", "error")
-        return redirect(url_for("products.list_products", tenant_id=tenant_id))
+        return redirect(url_for("products.list_products"))
 
 
 @products_bp.route("/add/ai", methods=["GET"])
-@require_tenant_access()
 def add_product_ai_form(tenant_id):
     """Show AI-powered product creation form."""
-    return render_template("add_product_ai.html", tenant_id=tenant_id)
+    return render_template("add_product_ai.html")
 
 
 @products_bp.route("/analyze_ai", methods=["POST"])
-@require_tenant_access()
 def analyze_product_ai(tenant_id):
     """Analyze product description with AI."""
     try:
@@ -260,14 +247,12 @@ def analyze_product_ai(tenant_id):
 
 
 @products_bp.route("/bulk", methods=["GET"])
-@require_tenant_access()
 def bulk_upload_form(tenant_id):
     """Show bulk product upload form."""
-    return render_template("bulk_product_upload.html", tenant_id=tenant_id)
+    return render_template("bulk_product_upload.html")
 
 
 @products_bp.route("/bulk/upload", methods=["POST"])
-@require_tenant_access()
 def bulk_upload(tenant_id):
     """Handle bulk product upload."""
     try:
@@ -312,7 +297,7 @@ def bulk_upload(tenant_id):
 
                         product = Product(
                             product_id=row.get("product_id") or f"prod_{uuid.uuid4().hex[:8]}",
-                            tenant_id=tenant_id,
+                            ,
                             name=row.get("name", ""),
                             description=row.get("description", ""),
                             formats=formats,
@@ -326,8 +311,7 @@ def bulk_upload(tenant_id):
                             cpm=float(row.get("cpm", 0)) if row.get("cpm") else None,
                             price_guidance=None,
                             countries=None,
-                            implementation_config=None,
-                        )
+                            implementation_config=None)
                         db_session.add(product)
                         created_count += 1
                     except Exception as e:
@@ -369,7 +353,7 @@ def bulk_upload(tenant_id):
 
                         product = Product(
                             product_id=item.get("product_id") or f"prod_{uuid.uuid4().hex[:8]}",
-                            tenant_id=tenant_id,
+                            ,
                             name=item.get("name", ""),
                             description=item.get("description", ""),
                             formats=formats,
@@ -379,8 +363,7 @@ def bulk_upload(tenant_id):
                             cpm=float(item.get("cpm", 0)) if item.get("cpm") else None,
                             price_guidance=item.get("price_guidance"),
                             countries=countries,
-                            implementation_config=item.get("implementation_config"),
-                        )
+                            implementation_config=item.get("implementation_config"))
                         db_session.add(product)
                         created_count += 1
                     except Exception as e:
@@ -404,7 +387,6 @@ def bulk_upload(tenant_id):
 
 
 @products_bp.route("/templates", methods=["GET"])
-@require_tenant_access()
 def get_templates(tenant_id):
     """Get product templates."""
     try:
@@ -430,7 +412,6 @@ def get_templates(tenant_id):
 
 
 @products_bp.route("/templates/browse", methods=["GET"])
-@require_tenant_access()
 def browse_templates(tenant_id):
     """Browse and use product templates."""
     from creative_formats import get_creative_formats
@@ -455,16 +436,12 @@ def browse_templates(tenant_id):
     formats = get_creative_formats()
 
     return render_template(
-        "product_templates.html",
-        tenant_id=tenant_id,
         standard_templates=standard_templates,
         industry_templates=industry_templates,
-        formats=formats,
-    )
+        formats=formats)
 
 
 @products_bp.route("/templates/create", methods=["POST"])
-@require_tenant_access()
 def create_from_template(tenant_id):
     """Create a product from a template."""
     try:
@@ -497,9 +474,7 @@ def create_from_template(tenant_id):
             product_id = f"prod_{uuid.uuid4().hex[:8]}"
 
             # Convert template to product
-            product = Product(
-                tenant_id=tenant_id,
-                product_id=product_id,
+            product = Product(product_id=product_id,
                 name=template.get("name"),
                 description=template.get("description"),
                 formats=template.get("formats", []),
@@ -520,8 +495,7 @@ def create_from_template(tenant_id):
                     if template.get("pricing", {}).get("model", "CPM") != "CPM"
                     else None
                 ),
-                implementation_config=None,
-            )
+                implementation_config=None)
 
             db_session.add(product)
             db_session.commit()
@@ -540,17 +514,16 @@ def create_from_template(tenant_id):
 
 
 @products_bp.route("/setup-wizard")
-@require_tenant_access()
 def setup_wizard(tenant_id):
     """Show product setup wizard for new tenants."""
     with get_db_session() as db_session:
-        tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+        tenant = db_session.query(Tenant).first()
         if not tenant:
             flash("Tenant not found", "error")
             return redirect(url_for("core.index"))
 
         # Check if tenant already has products
-        product_count = db_session.query(Product).filter_by(tenant_id=tenant_id).count()
+        product_count = db_session.query(Product).count()
 
         # Get industry from tenant config
         from src.admin.utils import get_tenant_config_from_db
@@ -572,18 +545,14 @@ def setup_wizard(tenant_id):
         formats = get_creative_formats()
 
         return render_template(
-            "product_setup_wizard.html",
-            tenant_id=tenant_id,
             tenant_name=tenant.name,
             tenant_industry=tenant_industry,
             has_existing_products=product_count > 0,
             suggestions=suggestions,
-            formats=formats,
-        )
+            formats=formats)
 
 
 @products_bp.route("/create-bulk", methods=["POST"])
-@require_tenant_access()
 def create_bulk(tenant_id):
     """Create multiple products from wizard suggestions."""
     try:
@@ -622,9 +591,7 @@ def create_bulk(tenant_id):
                     product_id = f"prod_{uuid.uuid4().hex[:8]}"
 
                     # Convert template to product
-                    product = Product(
-                        tenant_id=tenant_id,
-                        product_id=product_id,
+                    product = Product(product_id=product_id,
                         name=template.get("name"),
                         description=template.get("description"),
                         formats=template.get("formats", []),
@@ -645,8 +612,7 @@ def create_bulk(tenant_id):
                             if template.get("pricing", {}).get("model", "CPM") != "CPM"
                             else None
                         ),
-                        implementation_config=None,
-                    )
+                        implementation_config=None)
 
                     db_session.add(product)
                     created_products.append({"product_id": product_id, "name": template.get("name")})

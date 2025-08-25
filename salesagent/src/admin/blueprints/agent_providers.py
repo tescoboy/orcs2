@@ -87,7 +87,7 @@ def select_products(tenant_id: str, agent_type: str):
         
         # Get products from database
         with get_db_session() as db_session:
-            products = db_session.query(Product).filter_by(tenant_id=tenant_id).all()
+            products = db_session.query(Product).all()
             
             if not products:
                 logger.warning(f"No products found for tenant {tenant_id}")

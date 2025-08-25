@@ -92,7 +92,7 @@ def demo_tenant_switch(tenant_id):
     """Switch to a specific tenant in demo mode."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 return "Tenant not found", 404
             
@@ -137,14 +137,13 @@ def demo_tenant_switch(tenant_id):
 
         with get_db_session() as db_session:
             # Check if tenant already exists
-            existing = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            existing = db_session.query(Tenant).first()
             if existing:
                 flash(f"Publisher with ID {tenant_id} already exists", "error")
                 return render_template("create_tenant.html")
 
             # Create new tenant
             new_tenant = Tenant(
-                tenant_id=tenant_id,
                 name=tenant_name,
                 subdomain=subdomain,
                 is_active=True,
@@ -163,7 +162,6 @@ def demo_tenant_switch(tenant_id):
             return render_template("create_tenant.html", 
                                  success=True,
                                  tenant_name=tenant_name,
-                                 tenant_id=tenant_id,
                                  admin_token=admin_token,
                                  login_url=f"/tenant/{tenant_id}/login")
 
@@ -204,22 +202,20 @@ def create_tenant():
 
         with get_db_session() as db_session:
             # Check if tenant already exists
-            existing = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            existing = db_session.query(Tenant).first()
             if existing:
                 flash(f"Tenant with ID {tenant_id} already exists", "error")
                 return render_template("create_tenant.html")
 
             # Create new tenant
             new_tenant = Tenant(
-                tenant_id=tenant_id,
                 name=tenant_name,
                 subdomain=subdomain,
                 is_active=True,
                 ad_server=ad_server,
                 admin_token=admin_token,
                 created_at=datetime.now(UTC),
-                updated_at=datetime.now(UTC),
-            )
+                updated_at=datetime.now(UTC))
 
             # Set default configuration based on ad server
             if ad_server == "google_ad_manager":
@@ -249,18 +245,16 @@ def create_tenant():
 
             # Create default principal for the tenant
             default_principal = Principal(
-                tenant_id=tenant_id,
                 principal_id=f"{tenant_id}_default",
                 name=f"{tenant_name} Default Principal",
                 access_token=admin_token,  # Use same token for simplicity
-                platform_mappings=json.dumps({"mock": {"advertiser_id": "default"}}),
-            )
+                platform_mappings=json.dumps({"mock": {"advertiser_id": "default"}}))
             db_session.add(default_principal)
 
             db_session.commit()
 
             flash(f"Tenant '{tenant_name}' created successfully!", "success")
-            return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
+            return redirect(url_for("tenants.dashboard"))
 
     except Exception as e:
         logger.error(f"Error creating tenant: {e}", exc_info=True)

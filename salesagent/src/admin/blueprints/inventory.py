@@ -6,8 +6,7 @@ import logging
 from flask import Blueprint, jsonify, render_template, request, session
 from sqlalchemy import func
 
-from src.admin.utils import get_tenant_config_from_db, require_auth, require_tenant_access
-from src.core.database.database_session import get_db_session
+from src.admin.utils import get_tenant_config_from_db, require_auth
 from src.core.database.models import GAMInventory, GAMOrder, MediaBuy, Principal, Tenant
 
 logger = logging.getLogger(__name__)
@@ -25,7 +24,7 @@ def targeting_browser(tenant_id):
         return "Access denied", 403
 
     with get_db_session() as db_session:
-        tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+        tenant = db_session.query(Tenant).first()
         row = (tenant.tenant_id, tenant.name) if tenant else None
         if not row:
             return "Tenant not found", 404
@@ -33,11 +32,7 @@ def targeting_browser(tenant_id):
     tenant = {"tenant_id": row[0], "name": row[1]}
 
     return render_template(
-        "targeting_browser_simple.html",
-        tenant=tenant,
-        tenant_id=tenant_id,
-        tenant_name=row[1],
-    )
+        tenant_name=row[1])
 
 
 @inventory_bp.route("/tenant/<tenant_id>/inventory")
@@ -49,7 +44,7 @@ def inventory_browser(tenant_id):
         return "Access denied", 403
 
     with get_db_session() as db_session:
-        tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+        tenant = db_session.query(Tenant).first()
         row = (tenant.tenant_id, tenant.name) if tenant else None
         if not row:
             return "Tenant not found", 404
@@ -60,12 +55,8 @@ def inventory_browser(tenant_id):
     inventory_type = request.args.get("type", "all")
 
     return render_template(
-        "inventory_browser.html",
-        tenant=tenant,
-        tenant_id=tenant_id,
         tenant_name=row[1],
-        inventory_type=inventory_type,
-    )
+        inventory_type=inventory_type)
 
 
 @inventory_bp.route("/tenant/<tenant_id>/orders")
@@ -77,38 +68,33 @@ def orders_browser(tenant_id):
         return "Access denied", 403
 
     with get_db_session() as db_session:
-        tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+        tenant = db_session.query(Tenant).first()
         if not tenant:
             return "Tenant not found", 404
 
         # Get GAM orders from database
-        orders = db_session.query(GAMOrder).filter_by(tenant_id=tenant_id).order_by(GAMOrder.updated_at.desc()).all()
+        orders = db_session.query(GAMOrder).order_by(GAMOrder.updated_at.desc()).all()
 
         # Calculate summary stats
         total_orders = len(orders)
         active_orders = sum(1 for o in orders if o.status == "ACTIVE")
 
         # Get total revenue from media buys
-        total_revenue = db_session.query(func.sum(MediaBuy.budget)).filter_by(tenant_id=tenant_id).scalar() or 0
+        total_revenue = db_session.query(func.sum(MediaBuy.budget)).scalar() or 0
 
         return render_template(
-            "orders_browser.html",
-            tenant=tenant,
-            tenant_id=tenant_id,
             orders=orders,
             total_orders=total_orders,
             active_orders=active_orders,
-            total_revenue=total_revenue,
-        )
+            total_revenue=total_revenue)
 
 
 @inventory_bp.route("/api/tenant/<tenant_id>/sync/orders", methods=["POST"])
-@require_tenant_access(api_mode=True)
 def sync_orders(tenant_id):
     """Sync GAM orders for a tenant."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
 
             if not tenant:
                 return jsonify({"error": "Tenant not found"}), 404
@@ -120,11 +106,8 @@ def sync_orders(tenant_id):
             from src.adapters.gam_order_sync import sync_gam_orders
 
             # Perform sync
-            result = sync_gam_orders(
-                tenant_id=tenant_id,
-                network_code=tenant.gam_network_code,
-                refresh_token=tenant.gam_refresh_token,
-            )
+            result = sync_gam_orders(network_code=tenant.gam_network_code,
+                refresh_token=tenant.gam_refresh_token)
 
             return jsonify(result)
 
@@ -134,7 +117,6 @@ def sync_orders(tenant_id):
 
 
 @inventory_bp.route("/api/tenant/<tenant_id>/orders", methods=["GET"])
-@require_tenant_access(api_mode=True)
 def get_orders(tenant_id):
     """Get orders for a tenant."""
     try:
@@ -144,7 +126,7 @@ def get_orders(tenant_id):
             advertiser = request.args.get("advertiser")
 
             # Build query
-            query = db_session.query(GAMOrder).filter_by(tenant_id=tenant_id)
+            query = db_session.query(GAMOrder)
 
             if status:
                 query = query.filter_by(status=status)
@@ -186,19 +168,18 @@ def get_orders(tenant_id):
 
 
 @inventory_bp.route("/api/tenant/<tenant_id>/orders/<order_id>", methods=["GET"])
-@require_tenant_access(api_mode=True)
 def get_order_details(tenant_id, order_id):
     """Get details for a specific order."""
     try:
         with get_db_session() as db_session:
-            order = db_session.query(GAMOrder).filter_by(tenant_id=tenant_id, order_id=order_id).first()
+            order = db_session.query(GAMOrder).filter_by(order_id=order_id).first()
 
             if not order:
                 return jsonify({"error": "Order not found"}), 404
 
             # Get line items count (would need GAMLineItem model)
             # line_items_count = db_session.query(GAMLineItem).filter_by(
-            #     tenant_id=tenant_id,
+            #     ,
             #     order_id=order_id
             # ).count()
 
@@ -241,7 +222,7 @@ def check_inventory_sync(tenant_id):
     try:
         with get_db_session() as db_session:
             # Count inventory items
-            inventory_count = db_session.query(GAMInventory).filter_by(tenant_id=tenant_id).count()
+            inventory_count = db_session.query(GAMInventory).count()
 
             has_inventory = inventory_count > 0
 
@@ -321,7 +302,7 @@ def analyze_ad_server_inventory(tenant_id):
 
         # Get a principal for API calls
         with get_db_session() as db_session:
-            principal_obj = db_session.query(Principal).filter_by(tenant_id=tenant_id).first()
+            principal_obj = db_session.query(Principal).first()
 
             if not principal_obj:
                 return jsonify({"error": "No principal found for tenant"}), 404
@@ -334,13 +315,10 @@ def analyze_ad_server_inventory(tenant_id):
                 if isinstance(principal_obj.platform_mappings, dict)
                 else json.loads(principal_obj.platform_mappings)
             )
-            principal = PrincipalSchema(
-                tenant_id=tenant_id,
-                principal_id=principal_obj.principal_id,
+            principal = PrincipalSchema(principal_id=principal_obj.principal_id,
                 name=principal_obj.name,
                 access_token=principal_obj.access_token,
-                platform_mappings=mappings,
-            )
+                platform_mappings=mappings)
 
         # Get adapter instance
         from adapters import get_adapter

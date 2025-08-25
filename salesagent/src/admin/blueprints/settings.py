@@ -6,8 +6,7 @@ from datetime import UTC, datetime
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
-from src.admin.utils import get_tenant_config_from_db, require_auth, require_tenant_access
-from src.core.database.database_session import get_db_session
+from src.admin.utils import get_tenant_config_from_db, require_auth
 from src.core.database.models import SuperadminConfig, Tenant
 
 logger = logging.getLogger(__name__)
@@ -44,8 +43,7 @@ def superadmin_settings():
         "settings.html",
         config_items=config_items,
         gam_client_id=gam_client_id,
-        gam_client_secret=gam_client_secret,
-    )
+        gam_client_secret=gam_client_secret)
 
 
 @superadmin_settings_bp.route("/settings/update", methods=["POST"])
@@ -73,8 +71,7 @@ def update_superadmin_settings():
                             config_key=key,
                             config_value=value,
                             created_at=datetime.now(UTC),
-                            updated_at=datetime.now(UTC),
-                        )
+                            updated_at=datetime.now(UTC))
                         db_session.add(config)
 
             db_session.commit()
@@ -91,11 +88,10 @@ def update_superadmin_settings():
 # Tenant settings routes
 @settings_bp.route("/")
 @settings_bp.route("/<section>")
-@require_tenant_access()
 def tenant_settings(tenant_id, section=None):
     """Show tenant settings page."""
     with get_db_session() as db_session:
-        tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+        tenant = db_session.query(Tenant).first()
         if not tenant:
             flash("Tenant not found", "error")
             return redirect(url_for("core.index"))
@@ -134,9 +130,6 @@ def tenant_settings(tenant_id, section=None):
             }
 
     return render_template(
-        "tenant_settings.html",
-        tenant=tenant,
-        tenant_id=tenant_id,
         section=section or "general",
         active_adapter=active_adapter,
         available_adapters=available_adapters,
@@ -144,12 +137,10 @@ def tenant_settings(tenant_id, section=None):
         creative_engine=creative_engine,
         slack_webhook=slack_webhook,
         gam_settings=gam_settings,
-        adapter_config=adapter_config,
-    )
+        adapter_config=adapter_config)
 
 
 @settings_bp.route("/general", methods=["POST"])
-@require_tenant_access()
 def update_general(tenant_id):
     """Update general tenant settings."""
     try:
@@ -158,10 +149,10 @@ def update_general(tenant_id):
 
         if not tenant_name:
             flash("Tenant name is required", "error")
-            return redirect(url_for("settings.tenant_settings", tenant_id=tenant_id, section="general"))
+            return redirect(url_for("settings.tenant_settings", section="general"))
 
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("core.index"))
@@ -195,11 +186,10 @@ def update_general(tenant_id):
         logger.error(f"Error updating general settings: {e}", exc_info=True)
         flash(f"Error updating settings: {str(e)}", "error")
 
-    return redirect(url_for("settings.tenant_settings", tenant_id=tenant_id, section="general"))
+    return redirect(url_for("settings.tenant_settings", section="general"))
 
 
 @settings_bp.route("/adapter", methods=["POST"])
-@require_tenant_access()
 def update_adapter(tenant_id):
     """Update the active adapter for a tenant."""
     try:
@@ -213,10 +203,10 @@ def update_adapter(tenant_id):
             if request.is_json:
                 return jsonify({"success": False, "error": "No adapter selected"}), 400
             flash("No adapter selected", "error")
-            return redirect(url_for("settings.tenant_settings", tenant_id=tenant_id, section="adapter"))
+            return redirect(url_for("settings.tenant_settings", section="adapter"))
 
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 if request.is_json:
                     return jsonify({"success": False, "error": "Tenant not found"}), 404
@@ -232,7 +222,7 @@ def update_adapter(tenant_id):
                 # Create new config
                 from models import AdapterConfig
 
-                adapter_config_obj = AdapterConfig(tenant_id=tenant_id, adapter_type=new_adapter)
+                adapter_config_obj = AdapterConfig(adapter_type=new_adapter)
                 db_session.add(adapter_config_obj)
 
             # Handle adapter-specific configuration
@@ -266,7 +256,7 @@ def update_adapter(tenant_id):
                 return jsonify({"success": True, "message": f"Adapter changed to {new_adapter}"}), 200
 
             flash(f"Adapter changed to {new_adapter}", "success")
-            return redirect(url_for("settings.tenant_settings", tenant_id=tenant_id, section="adapter"))
+            return redirect(url_for("settings.tenant_settings", section="adapter"))
 
     except Exception as e:
         logger.error(f"Error updating adapter: {e}", exc_info=True)
@@ -275,18 +265,17 @@ def update_adapter(tenant_id):
             return jsonify({"success": False, "error": str(e)}), 400
 
         flash(f"Error updating adapter: {str(e)}", "error")
-        return redirect(url_for("settings.tenant_settings", tenant_id=tenant_id, section="adapter"))
+        return redirect(url_for("settings.tenant_settings", section="adapter"))
 
 
 @settings_bp.route("/slack", methods=["POST"])
-@require_tenant_access()
 def update_slack(tenant_id):
     """Update Slack integration settings."""
     try:
         webhook_url = request.form.get("slack_webhook_url", "").strip()
 
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("core.index"))
@@ -305,4 +294,4 @@ def update_slack(tenant_id):
         logger.error(f"Error updating Slack settings: {e}", exc_info=True)
         flash(f"Error updating Slack settings: {str(e)}", "error")
 
-    return redirect(url_for("settings.tenant_settings", tenant_id=tenant_id, section="integrations"))
+    return redirect(url_for("settings.tenant_settings", section="integrations"))

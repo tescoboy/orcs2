@@ -85,15 +85,13 @@ def create_tenant():
         
         with get_db_session() as db_session:
             # Check if tenant already exists
-            existing = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            existing = db_session.query(Tenant).first()
             if existing:
                 flash(f"Tenant with ID {tenant_id} already exists", "error")
                 return render_template("admin/tenants/create.html")
             
             # Create new tenant
-            new_tenant = Tenant(
-                tenant_id=tenant_id,
-                name=tenant_name,
+            new_tenant = Tenant(name=tenant_name,
                 subdomain=subdomain,
                 is_active=True,
                 ad_server=ad_server,
@@ -107,8 +105,7 @@ def create_tenant():
                 auto_approve_formats=json.dumps(["display_300x250"]),
                 policy_settings=json.dumps({}),
                 created_at=datetime.now(UTC),
-                updated_at=datetime.now(UTC),
-            )
+                updated_at=datetime.now(UTC))
             
             db_session.add(new_tenant)
             
@@ -120,13 +117,10 @@ def create_tenant():
                 }
             }
             
-            default_principal = Principal(
-                tenant_id=tenant_id,
-                principal_id=f"{tenant_id}_default",
+            default_principal = Principal(principal_id=f"{tenant_id}_default",
                 name=f"{tenant_name} Default Principal",
                 access_token=admin_token,
-                platform_mappings=json.dumps(default_platform_mapping),
-            )
+                platform_mappings=json.dumps(default_platform_mapping))
             db_session.add(default_principal)
             
             db_session.commit()
@@ -156,13 +150,13 @@ def view_tenant(tenant_id):
     """View tenant details."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("admin_tenants.list_tenants"))
             
             # Get principals
-            principals = db_session.query(Principal).filter_by(tenant_id=tenant_id).all()
+            principals = db_session.query(Principal).all()
             
             return render_template("admin/tenants/view.html", tenant=tenant, principals=principals)
             
@@ -177,7 +171,7 @@ def edit_tenant(tenant_id):
     """Edit tenant details."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("admin_tenants.list_tenants"))
@@ -198,7 +192,7 @@ def edit_tenant(tenant_id):
             db_session.commit()
             
             flash(f"Tenant '{tenant.name}' updated successfully!", "success")
-            return redirect(url_for("admin_tenants.view_tenant", tenant_id=tenant_id))
+            return redirect(url_for("admin_tenants.view_tenant"))
             
     except Exception as e:
         logger.error(f"Error updating tenant: {e}", exc_info=True)
@@ -211,7 +205,7 @@ def toggle_tenant(tenant_id):
     """Toggle tenant active status."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 return jsonify({"error": "Tenant not found"}), 404
             
@@ -236,7 +230,7 @@ def delete_tenant(tenant_id):
     """Delete tenant (soft delete)."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 flash("Tenant not found", "error")
                 return redirect(url_for("admin_tenants.list_tenants"))
@@ -260,7 +254,7 @@ def regenerate_token(tenant_id):
     """Regenerate admin token for tenant."""
     try:
         with get_db_session() as db_session:
-            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            tenant = db_session.query(Tenant).first()
             if not tenant:
                 return jsonify({"error": "Tenant not found"}), 404
             
