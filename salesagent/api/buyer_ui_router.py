@@ -3,6 +3,11 @@
 from flask import Blueprint, request, render_template, jsonify, make_response
 from typing import List, Optional
 
+import sys
+import os
+# Add the salesagent directory to the path so we can import from services
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from services.buyer_search_service import search_products
 from services.buyer_session import (
     get_or_create_session_id, add_to_selection, remove_from_selection,
@@ -16,7 +21,17 @@ buyer_ui_bp = Blueprint("buyer_ui", __name__, url_prefix="/buyer")
 @buyer_ui_bp.route("/", methods=["GET"])
 def buyer_search_page():
     """Render the buyer search page."""
-    response = make_response(render_template("ui/buyer/search.html"))
+    # Get active tenants from database
+    from src.core.database.database_session import get_db_session
+    from src.core.database.models import Tenant
+    
+    tenants = []
+    with get_db_session() as session:
+        db_tenants = session.query(Tenant).filter_by(is_active=True).all()
+        tenants = [{"tenant_id": t.tenant_id, "name": t.name} for t in db_tenants]
+
+    
+    response = make_response(render_template("ui/buyer/search.html", tenants=tenants))
     session_id = get_or_create_session_id(request, response)
     return response
 

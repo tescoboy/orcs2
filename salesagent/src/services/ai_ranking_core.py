@@ -14,36 +14,55 @@ class AIRankingCore:
     def _call_gemini(self, prompt: str, products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Call Gemini API to rank products."""
         try:
-            # Mock Gemini call for now - in real implementation, this would call the actual API
-            # For testing purposes, we'll simulate a response
-            logger.debug(f"Calling Gemini with prompt length: {len(prompt)}")
-            logger.debug(f"Ranking {len(products)} products")
+            import os
+            import google.generativeai as genai
             
-            # Simulate AI response - in real implementation, this would be the actual Gemini response
-            mock_response = {
-                "products": [
-                    {
-                        "product_id": products[0]["id"] if products else "unknown",
-                        "relevance_score": 0.95,
-                        "reasoning": "Perfect match for campaign requirements"
-                    }
-                ]
-            }
+            # Get Gemini API key
+            api_key = os.environ.get("GEMINI_API_KEY")
+            if not api_key:
+                logger.error("GEMINI_API_KEY environment variable not set")
+                return self._get_fallback_rankings(products)
+            
+            # Configure Gemini
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel("gemini-2.0-flash-exp")
+            
+            logger.info(f"Calling Gemini API with prompt length: {len(prompt)}")
+            logger.info(f"Ranking {len(products)} products")
+            
+            # Call Gemini
+            response = model.generate_content(prompt)
+            response_text = response.text
+            
+            logger.info(f"Gemini response received: {len(response_text)} characters")
             
             # Parse and clean the response
-            if isinstance(mock_response, str):
-                # Remove markdown code blocks if present
-                if mock_response.startswith("```json"):
-                    mock_response = mock_response[7:]
-                if mock_response.endswith("```"):
-                    mock_response = mock_response[:-3]
-                mock_response = json.loads(mock_response.strip())
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
             
-            return mock_response.get("products", [])
+            # Parse JSON response
+            ai_response = json.loads(response_text.strip())
+            
+            logger.info(f"Successfully parsed Gemini response with {len(ai_response.get('products', []))} ranked products")
+            return ai_response.get("products", [])
             
         except Exception as e:
-            logger.error(f"Error calling Gemini: {e}")
-            return []
+            logger.error(f"Error calling Gemini API: {e}")
+            logger.info("Falling back to mock rankings")
+            return self._get_fallback_rankings(products)
+    
+    def _get_fallback_rankings(self, products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Get fallback rankings when Gemini is not available."""
+        rankings = []
+        for i, product in enumerate(products):
+            rankings.append({
+                "product_id": product.get("id", f"product_{i}"),
+                "relevance_score": 1.0 - (i * 0.1),  # Decreasing scores
+                "reasoning": f"Fallback ranking position {i+1}"
+            })
+        return rankings
     
     def _apply_rankings(self, products: List[Dict[str, Any]], rankings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Apply AI rankings to products."""

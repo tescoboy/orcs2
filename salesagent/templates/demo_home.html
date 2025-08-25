@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}AdCP Demo - Home{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-rocket me-2"></i>
+                    AdCP Demo System
+                </h1>
+                <div>
+                    <a href="{{ url_for('admin_tenants.list_tenants') }}" class="btn btn-primary">
+                        <i class="fas fa-cogs me-1"></i>
+                        Admin Panel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-building me-2"></i>
+                        Available Tenants
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if tenants %}
+                    <div class="row">
+                        {% for tenant in tenants %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ tenant.name }}</h6>
+                                    <p class="card-text text-muted">
+                                        <small>ID: {{ tenant.tenant_id }}</small><br>
+                                        <small>Subdomain: {{ tenant.subdomain }}</small>
+                                    </p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge bg-{{ 'success' if tenant.is_active else 'danger' }}">
+                                            {{ 'Active' if tenant.is_active else 'Inactive' }}
+                                        </span>
+                                        <a href="{{ url_for('core.demo_tenant_switch', tenant_id=tenant.tenant_id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-sign-in-alt me-1"></i>
+                                            Switch to Tenant
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-building fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Tenants Found</h5>
+                        <p class="text-muted">Create your first tenant to get started.</p>
+                        <a href="{{ url_for('admin_tenants.create_tenant') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>
+                            Create First Tenant
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Demo Features
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <strong>Admin Panel:</strong> Manage tenants
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <strong>Tenant Switching:</strong> Switch between tenants
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <strong>Product Management:</strong> Manage products per tenant
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <strong>No Authentication:</strong> Free access for demo
+                        </li>
+                    </ul>
+                    
+                    <hr>
+                    
+                    <h6>Quick Actions:</h6>
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('admin_tenants.create_tenant') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-plus me-1"></i>
+                            Create New Tenant
+                        </a>
+                        <a href="{{ url_for('admin_tenants.list_tenants') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-list me-1"></i>
+                            View All Tenants
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

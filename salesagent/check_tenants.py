@@ -6,10 +6,10 @@ from src.core.database.models import Tenant
 
 def main():
     with get_db_session() as session:
-        tenants = session.query(Tenant).all()
+        tenants = session.query(Tenant).filter_by(is_active=True).all()
         print(f"Found {len(tenants)} tenants:")
         for tenant in tenants:
-            print(f"- {tenant.id}: {tenant.name} (slug: {tenant.slug})")
+            print(f"- {tenant.tenant_id}: {tenant.name}")
         
         if not tenants:
             print("No tenants found. You may need to create a default tenant.")

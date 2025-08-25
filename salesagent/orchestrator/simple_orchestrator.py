@@ -11,11 +11,12 @@ logger = logging.getLogger(__name__)
 class SimpleOrchestratorService:
     """Simple orchestrator service using direct SQLite access."""
     
-    def __init__(self, db_path="/Users/harvingupta/.adcp/adcp.db"):
+    def __init__(self, db_path="./adcp.db"):
         self.db_path = db_path
         self.logger = logging.getLogger(__name__)
+        self.logger.info(f"SimpleOrchestratorService initialized with db_path: {self.db_path}")
     
-    def orchestrate(self, request) -> Dict[str, Any]:
+    async def orchestrate(self, request) -> Dict[str, Any]:
         """Orchestrate product discovery across all active tenants."""
         try:
             # Get products from all active tenants
@@ -26,7 +27,7 @@ class SimpleOrchestratorService:
             )
             
             # Filter and score products based on the prompt
-            scored_products = self._score_products(products, request.prompt)
+            scored_products = await self._score_products(products, request.prompt)
             
             # Sort by score and limit results
             scored_products.sort(key=lambda x: x.get('score', 0), reverse=True)
@@ -83,6 +84,7 @@ class SimpleOrchestratorService:
         products = []
         
         try:
+            self.logger.info(f"Connecting to database at: {self.db_path}")
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
@@ -91,6 +93,17 @@ class SimpleOrchestratorService:
             if not cursor.fetchone():
                 self.logger.error("Tenants table does not exist")
                 return []
+            
+            # Debug: Check if products table exists
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='products'")
+            if not cursor.fetchone():
+                self.logger.error("Products table does not exist")
+                return []
+            
+            # Debug: Count products
+            cursor.execute("SELECT COUNT(*) FROM products")
+            product_count = cursor.fetchone()[0]
+            self.logger.info(f"Total products in database: {product_count}")
             
             # Get active tenants
             tenant_query = "SELECT tenant_id, name FROM tenants WHERE is_active = 1"
@@ -180,31 +193,140 @@ class SimpleOrchestratorService:
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             return []
     
-    def _score_products(self, products: List[Dict[str, Any]], prompt: str) -> List[Dict[str, Any]]:
-        """Score products based on the search prompt."""
-        # Simple scoring based on prompt keywords
+    async def _score_products(self, products: List[Dict[str, Any]], prompt: str) -> List[Dict[str, Any]]:
+        """Score products using the ADK sales agent which calls Gemini."""
+        try:
+            # Import the ADK agent
+            import sys
+            import os
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            
+            from src.adk.adcp_agent.agent import root_agent
+            
+            # Convert products to the format expected by the agent
+            agent_products = []
+            for product in products:
+                agent_products.append({
+                    'id': product['id'],
+                    'name': product['name'],
+                    'description': product['description'],
+                    'formats': product['formats'],
+                    'price_cpm': product['price_cpm'],
+                    'delivery_type': product['delivery_type'],
+                    'publisher_name': product['publisher_name'],
+                    'targeting': product.get('targeting', {}),
+                    'categories': product.get('categories', [])
+                })
+            
+            # Create a mock context for the agent
+            context = {
+                'products': agent_products,
+                'prompt': prompt,
+                'max_results': len(products)
+            }
+            
+            # Call the ADK agent to use its tools and Gemini-powered capabilities
+            import asyncio
+            
+            # Create a prompt for the agent to analyze products
+            agent_prompt = f"""
+Please analyze and rank the following products based on this campaign brief: "{prompt}"
+
+Available products: {json.dumps(agent_products, indent=2)}
+
+Use your expertise as a sales agent to:
+1. Analyze each product's relevance to the campaign brief
+2. Consider targeting capabilities, format compatibility, and pricing
+3. Rank products from most to least relevant
+4. Provide detailed reasoning for your rankings
+
+Return your analysis in JSON format with product_id, relevance_score, and reasoning for each product.
+"""
+            
+            # Call the ADK agent (this will use the agent's Gemini model and tools)
+            agent_response = await root_agent.run_async(agent_prompt)
+            
+            # Parse the agent's response and apply rankings
+            ranked_products = self._parse_agent_rankings(products, agent_response)
+            
+            self.logger.info(f"Sales agent ranking completed for {len(ranked_products)} products")
+            return ranked_products
+            
+        except Exception as e:
+            self.logger.error(f"Error in sales agent ranking, falling back to keyword matching: {e}")
+            # Fallback to keyword matching if agent fails
+            return self._fallback_keyword_scoring(products, prompt)
+    
+    def _parse_agent_rankings(self, products: List[Dict[str, Any]], agent_response: str) -> List[Dict[str, Any]]:
+        """Parse the sales agent's response and apply rankings to products."""
+        try:
+            # The agent should return a JSON response with ranked products
+            import json
+            
+            # Try to extract JSON from the agent response
+            if isinstance(agent_response, str):
+                # Look for JSON in the response
+                import re
+                json_match = re.search(r'\{.*\}', agent_response, re.DOTALL)
+                if json_match:
+                    rankings_data = json.loads(json_match.group())
+                else:
+                    # If no JSON found, create simple rankings based on response
+                    rankings_data = {"products": []}
+            else:
+                rankings_data = agent_response
+            
+            # Apply rankings
+            ranking_lookup = {}
+            for ranking in rankings_data.get("products", []):
+                product_id = ranking.get("product_id")
+                if product_id:
+                    ranking_lookup[product_id] = ranking
+            
+            # Update products with rankings
+            for i, product in enumerate(products):
+                product_id = product.get("id")
+                if product_id in ranking_lookup:
+                    ranking = ranking_lookup[product_id]
+                    product['score'] = ranking.get("relevance_score", 0.8)
+                    product['rationale'] = ranking.get("reasoning", f"Ranked by sales agent")
+                else:
+                    # Default ranking for products not explicitly ranked
+                    product['score'] = 0.5 - (i * 0.01)
+                    product['rationale'] = "Default ranking from sales agent"
+            
+            # Sort by score descending
+            products.sort(key=lambda x: x.get('score', 0), reverse=True)
+            
+            return products
+            
+        except Exception as e:
+            self.logger.error(f"Error parsing agent rankings: {e}")
+            # Return products with default scores
+            for i, product in enumerate(products):
+                product['score'] = 0.8 - (i * 0.01)
+                product['rationale'] = "Default ranking due to parsing error"
+            return products
+    
+    def _fallback_keyword_scoring(self, products: List[Dict[str, Any]], prompt: str) -> List[Dict[str, Any]]:
+        """Fallback keyword-based scoring when AI is not available."""
         prompt_lower = prompt.lower()
+        prompt_words = set(prompt_lower.split())
         
         for product in products:
             score = 0.5  # Base score
+            reasons = []
             
-            # Score based on name match
-            if any(word in product['name'].lower() for word in prompt_lower.split()):
+            # Simple keyword matching (original logic)
+            if any(word in product['name'].lower() for word in prompt_words):
                 score += 0.2
+                reasons.append("Name matches keywords")
             
-            # Score based on description match
-            if any(word in product['description'].lower() for word in prompt_lower.split()):
-                score += 0.15
-            
-            # Score based on categories
-            if product['categories'] and any(word in ' '.join(product['categories']).lower() for word in prompt_lower.split()):
+            if any(word in product['description'].lower() for word in prompt_words):
                 score += 0.1
-            
-            # Score based on delivery type
-            if 'guaranteed' in prompt_lower and product['delivery_type'] == 'guaranteed':
-                score += 0.05
+                reasons.append("Description matches keywords")
             
             product['score'] = min(score, 1.0)
-            product['rationale'] = f"Scored {score:.2f} based on prompt relevance"
+            product['rationale'] = f"Keyword match: {'; '.join(reasons)}. Score: {score:.2f}"
         
         return products

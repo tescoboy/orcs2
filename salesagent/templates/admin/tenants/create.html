@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}Create Tenant - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-plus me-2"></i>
+                    Create New Tenant
+                </h1>
+                <a href="{{ url_for('admin_tenants.list_tenants') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>
+                    Back to Tenants
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="card-title mb-3">Basic Information</h5>
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Tenant Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" required 
+                                   placeholder="e.g., New York Times">
+                            <div class="form-text">The display name for this tenant</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="subdomain" class="form-label">Subdomain</label>
+                            <input type="text" class="form-control" id="subdomain" name="subdomain" 
+                                   placeholder="e.g., nytimes">
+                            <div class="form-text">Leave blank to auto-generate from tenant name</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="ad_server" class="form-label">Ad Server</label>
+                            <select class="form-select" id="ad_server" name="ad_server">
+                                <option value="mock">Mock Ad Server</option>
+                                <option value="google_ad_manager">Google Ad Manager</option>
+                                <option value="amazon_publisher_services">Amazon Publisher Services</option>
+                                <option value="xandr">Xandr</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="billing_plan" class="form-label">Billing Plan</label>
+                            <select class="form-select" id="billing_plan" name="billing_plan">
+                                <option value="standard">Standard</option>
+                                <option value="premium">Premium</option>
+                                <option value="enterprise">Enterprise</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <h5 class="card-title mb-3">Configuration</h5>
+                        
+                        <div class="mb-3">
+                            <label for="max_daily_budget" class="form-label">Max Daily Budget ($)</label>
+                            <input type="number" class="form-control" id="max_daily_budget" name="max_daily_budget" 
+                                   value="10000" min="0" step="100">
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enable_aee_signals" name="enable_aee_signals" checked>
+                                <label class="form-check-label" for="enable_aee_signals">
+                                    Enable AEE Signals
+                                </label>
+                                <div class="form-text">Enable automated efficiency enhancement signals</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="human_review_required" name="human_review_required">
+                                <label class="form-check-label" for="human_review_required">
+                                    Require Human Review
+                                </label>
+                                <div class="form-text">Require manual approval for media buys</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col">
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('admin_tenants.list_tenants') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>
+                                Create Tenant
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

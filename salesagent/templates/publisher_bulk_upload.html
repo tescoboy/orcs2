@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Product Upload - {{ tenant_id }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+            background: #e3f2fd;
+        }
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .template-item {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: white;
+        }
+        .template-item:hover {
+            border-color: #007bff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/publisher/{{ tenant_id }}/products">
+                <i class="fas fa-arrow-left me-2"></i>
+                Back to Products
+            </a>
+            <span class="navbar-text">
+                <i class="fas fa-upload me-2"></i>
+                Bulk Product Upload
+            </span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title mb-0">
+                            <i class="fas fa-upload me-2"></i>
+                            Bulk Product Upload
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <strong>Bulk Import:</strong> Upload multiple products at once using CSV or JSON format.
+                        </div>
+
+                        <!-- Upload Options Tabs -->
+                        <ul class="nav nav-tabs mb-4" id="uploadTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="csv-tab" data-bs-toggle="tab" data-bs-target="#csv-content" type="button" role="tab">
+                                    <i class="fas fa-file-csv me-2"></i>CSV Upload
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="json-tab" data-bs-toggle="tab" data-bs-target="#json-content" type="button" role="tab">
+                                    <i class="fas fa-file-code me-2"></i>JSON Upload
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="template-tab" data-bs-toggle="tab" data-bs-target="#template-content" type="button" role="tab">
+                                    <i class="fas fa-download me-2"></i>Download Template
+                                </button>
+                            </li>
+                        </ul>
+
+                        <!-- Tab Content -->
+                        <div class="tab-content" id="uploadTabContent">
+                            <!-- CSV Upload Tab -->
+                            <div class="tab-pane fade show active" id="csv-content" role="tabpanel">
+                                <h4>Upload CSV File</h4>
+                                <p class="text-muted">Upload a CSV file with your product data.</p>
+                                
+                                <form id="csv-upload-form" enctype="multipart/form-data" action="/publisher/{{ tenant_id }}/bulk_upload" method="POST">
+                                    <div class="upload-area" id="csv-upload-area">
+                                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                        <h5>Drop your CSV file here</h5>
+                                        <p class="text-muted">or click to browse</p>
+                                        <input type="file" id="csv-file" name="file" accept=".csv" class="d-none" required>
+                                        <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('csv-file').click()">
+                                            <i class="fas fa-folder-open me-2"></i>Choose File
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="csv-file-info" class="mt-3" style="display: none;">
+                                        <div class="alert alert-success">
+                                            <i class="fas fa-check-circle me-2"></i>
+                                            <span id="csv-file-name"></span>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary mt-3" id="csv-submit-btn" disabled>
+                                        <i class="fas fa-upload me-2"></i>Upload CSV
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- JSON Upload Tab -->
+                            <div class="tab-pane fade" id="json-content" role="tabpanel">
+                                <h4>Upload JSON File</h4>
+                                <p class="text-muted">Upload a JSON file with your product data.</p>
+                                
+                                <form id="json-upload-form" enctype="multipart/form-data" action="/publisher/{{ tenant_id }}/bulk_upload" method="POST">
+                                    <div class="upload-area" id="json-upload-area">
+                                        <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                        <h5>Drop your JSON file here</h5>
+                                        <p class="text-muted">or click to browse</p>
+                                        <input type="file" id="json-file" name="file" accept=".json" class="d-none" required>
+                                        <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('json-file').click()">
+                                            <i class="fas fa-folder-open me-2"></i>Choose File
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="json-file-info" class="mt-3" style="display: none;">
+                                        <div class="alert alert-success">
+                                            <i class="fas fa-check-circle me-2"></i>
+                                            <span id="json-file-name"></span>
+                                        </div>
+                                    </div>
+                                    
+                                    <button type="submit" class="btn btn-primary mt-3" id="json-submit-btn" disabled>
+                                        <i class="fas fa-upload me-2"></i>Upload JSON
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- Template Tab -->
+                            <div class="tab-pane fade" id="template-content" role="tabpanel">
+                                <h4>Download Templates</h4>
+                                <p class="text-muted">Download sample templates to get started.</p>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-file-csv fa-3x text-primary mb-3"></i>
+                                                <h5>CSV Template</h5>
+                                                <p class="text-muted">Sample CSV file with all required fields</p>
+                                                <button class="btn btn-outline-primary" onclick="downloadCSVTemplate()">
+                                                    <i class="fas fa-download me-2"></i>Download CSV Template
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-file-code fa-3x text-success mb-3"></i>
+                                                <h5>JSON Template</h5>
+                                                <p class="text-muted">Sample JSON file with all required fields</p>
+                                                <button class="btn btn-outline-success" onclick="downloadJSONTemplate()">
+                                                    <i class="fas fa-download me-2"></i>Download JSON Template
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <h5>CSV Format Requirements:</h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Field</th>
+                                                    <th>Required</th>
+                                                    <th>Description</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td><code>name</code></td>
+                                                    <td><span class="badge bg-danger">Yes</span></td>
+                                                    <td>Product name</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>description</code></td>
+                                                    <td><span class="badge bg-secondary">No</span></td>
+                                                    <td>Product description</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>formats</code></td>
+                                                    <td><span class="badge bg-secondary">No</span></td>
+                                                    <td>Comma-separated format IDs</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>delivery_type</code></td>
+                                                    <td><span class="badge bg-secondary">No</span></td>
+                                                    <td>"guaranteed" or "non_guaranteed"</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>cpm</code></td>
+                                                    <td><span class="badge bg-secondary">No</span></td>
+                                                    <td>CPM price for guaranteed products</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><code>countries</code></td>
+                                                    <td><span class="badge bg-secondary">No</span></td>
+                                                    <td>Comma-separated country codes</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // File upload handling
+        function setupFileUpload(inputId, areaId, infoId, nameId, submitId) {
+            const input = document.getElementById(inputId);
+            const area = document.getElementById(areaId);
+            const info = document.getElementById(infoId);
+            const nameSpan = document.getElementById(nameId);
+            const submitBtn = document.getElementById(submitId);
+            
+            input.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    nameSpan.textContent = file.name;
+                    info.style.display = 'block';
+                    submitBtn.disabled = false;
+                } else {
+                    info.style.display = 'none';
+                    submitBtn.disabled = true;
+                }
+            });
+            
+            // Drag and drop functionality
+            area.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                area.classList.add('dragover');
+            });
+            
+            area.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                area.classList.remove('dragover');
+            });
+            
+            area.addEventListener('drop', function(e) {
+                e.preventDefault();
+                area.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    input.files = files;
+                    input.dispatchEvent(new Event('change'));
+                }
+            });
+            
+            area.addEventListener('click', function() {
+                input.click();
+            });
+        }
+        
+        // Setup file uploads
+        setupFileUpload('csv-file', 'csv-upload-area', 'csv-file-info', 'csv-file-name', 'csv-submit-btn');
+        setupFileUpload('json-file', 'json-upload-area', 'json-file-info', 'json-file-name', 'json-submit-btn');
+        
+        // Template downloads
+        function downloadCSVTemplate() {
+            const csvContent = `name,description,formats,delivery_type,cpm,countries
+Sample Product 1,This is a sample product description,display_300x250,non_guaranteed,5.00,US
+Sample Product 2,Another sample product,display_728x90,guaranteed,10.00,US,CA`;
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'product_template.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+        
+        function downloadJSONTemplate() {
+            const jsonContent = [
+                {
+                    "name": "Sample Product 1",
+                    "description": "This is a sample product description",
+                    "formats": ["display_300x250"],
+                    "delivery_type": "non_guaranteed",
+                    "cpm": 5.00,
+                    "countries": ["US"]
+                },
+                {
+                    "name": "Sample Product 2",
+                    "description": "Another sample product",
+                    "formats": ["display_728x90"],
+                    "delivery_type": "guaranteed",
+                    "cpm": 10.00,
+                    "countries": ["US", "CA"]
+                }
+            ];
+            
+            const blob = new Blob([JSON.stringify(jsonContent, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'product_template.json';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

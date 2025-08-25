@@ -21,38 +21,9 @@ core_bp = Blueprint("core", __name__)
 
 
 @core_bp.route("/")
-@require_auth()
 def index():
-    """Main index page - redirects based on user role."""
-    # Check if user is super admin
-    if session.get("role") == "super_admin":
-        # Super admin - show all tenants
-        with get_db_session() as db_session:
-            tenants = db_session.query(Tenant).order_by(Tenant.name).all()
-            tenant_list = []
-            for tenant in tenants:
-                tenant_list.append(
-                    {
-                        "tenant_id": tenant.tenant_id,
-                        "name": tenant.name,
-                        "subdomain": tenant.subdomain,
-                        "is_active": tenant.is_active,
-                        "created_at": tenant.created_at,
-                    }
-                )
-        return render_template("index.html", tenants=tenant_list)
-
-    elif session.get("role") in ["tenant_admin", "tenant_user"]:
-        # Tenant admin/user - redirect to their tenant dashboard
-        tenant_id = session.get("tenant_id")
-        if tenant_id:
-            return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
-        else:
-            return "No tenant associated with your account", 403
-
-    else:
-        # Unknown role
-        return "Access denied", 403
+    """Main index page - redirects to demo home for easy access."""
+    return redirect(url_for("core.demo_home"))
 
 
 @core_bp.route("/health")
@@ -78,18 +49,14 @@ def create_publisher_simple():
 def select_publisher():
     """Simple publisher selector page."""
     if request.method == "GET":
-        # Get all active tenants
-        from sqlalchemy import create_engine
-        from sqlalchemy.orm import sessionmaker
-        
-        # Create a new engine with the correct database URL
-        db_url = 'sqlite:////Users/harvingupta/.adcp/adcp.db'
-        engine = create_engine(db_url)
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        
-        with SessionLocal() as db_session:
-            tenants = db_session.query(Tenant).filter_by(is_active=True).all()
-        return render_template("simple_tenant_selector.html", tenants=tenants)
+        # Get all tenants using the same database session as other routes
+        try:
+            with get_db_session() as db_session:
+                tenants = db_session.query(Tenant).order_by(Tenant.name).all()
+            return render_template("simple_tenant_selector.html", tenants=tenants)
+        except Exception as e:
+            logger.error(f"Error loading tenants for select_publisher: {e}", exc_info=True)
+            return f"Error loading tenants: {str(e)}", 500
     
     # Handle POST - redirect to selected publisher
     tenant_id = request.form.get("tenant_id")
@@ -97,6 +64,51 @@ def select_publisher():
         return redirect(f"/publisher/{tenant_id}/products")
     else:
         return redirect("/select_publisher")
+
+
+@core_bp.route("/demo")
+def demo_home():
+    """Demo home page - freely accessible without authentication."""
+    try:
+        with get_db_session() as db_session:
+            tenants = db_session.query(Tenant).order_by(Tenant.name).all()
+            tenant_list = []
+            for tenant in tenants:
+                tenant_list.append({
+                    "tenant_id": tenant.tenant_id,
+                    "name": tenant.name,
+                    "subdomain": tenant.subdomain,
+                    "is_active": tenant.is_active,
+                    "created_at": tenant.created_at,
+                })
+        return render_template("demo_home.html", tenants=tenant_list)
+    except Exception as e:
+        logger.error(f"Error loading demo home: {e}", exc_info=True)
+        return f"Error loading demo: {str(e)}", 500
+
+
+@core_bp.route("/demo/tenant/<tenant_id>")
+def demo_tenant_switch(tenant_id):
+    """Switch to a specific tenant in demo mode."""
+    try:
+        with get_db_session() as db_session:
+            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            if not tenant:
+                return "Tenant not found", 404
+            
+            # Set session data for demo mode
+            session["demo_tenant_id"] = tenant_id
+            session["demo_tenant_name"] = tenant.name
+            session["demo_mode"] = True
+            
+            # Call the dashboard function directly to avoid redirect issues
+            from src.admin.blueprints.tenants import dashboard
+            return dashboard(tenant_id)
+    except Exception as e:
+        logger.error(f"Error switching to tenant: {e}", exc_info=True)
+        return f"Error switching tenant: {str(e)}", 500
+
+
 
 
 

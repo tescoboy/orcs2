@@ -10,7 +10,7 @@ import string
 from datetime import datetime, timezone
 
 # Set database URL
-os.environ['DATABASE_URL'] = 'sqlite:////Users/harvingupta/.adcp/adcp.db'
+os.environ['DATABASE_URL'] = 'sqlite:///./adcp.db'
 
 from src.core.database.database_session import get_db_session
 from src.core.database.models import Tenant

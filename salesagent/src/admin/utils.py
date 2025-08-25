@@ -224,6 +224,11 @@ def require_tenant_access(api_mode=False):
     def decorator(f):
         @wraps(f)
         def decorated_function(tenant_id, *args, **kwargs):
+            # Check for demo mode
+            if "demo_mode" in session and session["demo_mode"]:
+                # Demo mode allows access to any tenant
+                return f(tenant_id, *args, **kwargs)
+            
             # Check for test mode
             test_mode = os.environ.get("ADCP_AUTH_TEST_MODE", "").lower() == "true"
             if test_mode and "test_user" in session:

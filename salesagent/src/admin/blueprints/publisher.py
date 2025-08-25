@@ -26,34 +26,11 @@ def publisher_products(tenant_id):
     logger.info(f"publisher_products called for tenant: {tenant_id}")
     
     try:
-        import os
-        logger.info(f"DATABASE_URL: {os.environ.get('DATABASE_URL', 'NOT SET')}")
-        
-        # Create a new engine with the correct database URL
-        db_url = 'sqlite:////Users/harvingupta/.adcp/adcp.db'
-        engine = create_engine(db_url)
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        
-        with SessionLocal() as db_session:
-            logger.info("Database session created successfully")
-            
-            # Test with raw SQL first
-            result = db_session.execute(text("SELECT tenant_id, name FROM tenants WHERE tenant_id = :tenant_id"), {"tenant_id": tenant_id})
-            raw_tenant = result.fetchone()
-            logger.info(f"Raw SQL query result: {raw_tenant}")
-            
-            if not raw_tenant:
-                logger.error(f"Raw SQL query found no tenant: {tenant_id}")
-                return f"Publisher not found (raw SQL): {tenant_id}", 404
-            
-            logger.info(f"Raw SQL found tenant: {raw_tenant[1]}")
-            
+        with get_db_session() as db_session:
             tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
-            logger.info(f"SQLAlchemy query result: {tenant}")
-            
             if not tenant:
-                logger.error(f"SQLAlchemy query found no tenant: {tenant_id}")
-                return f"Publisher not found (SQLAlchemy): {tenant_id}", 404
+                logger.error(f"Tenant not found: {tenant_id}")
+                return f"Publisher not found: {tenant_id}", 404
             
             logger.info(f"Found tenant: {tenant.name}")
             
@@ -78,12 +55,7 @@ def add_product(tenant_id):
     logger.info(f"add_product called for tenant: {tenant_id}, method: {request.method}")
     
     try:
-        # Create a new engine with the correct database URL
-        db_url = 'sqlite:////Users/harvingupta/.adcp/adcp.db'
-        engine = create_engine(db_url)
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        
-        with SessionLocal() as db_session:
+        with get_db_session() as db_session:
             tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
             if not tenant:
                 logger.error(f"Tenant not found: {tenant_id}")
@@ -142,12 +114,7 @@ def delete_product(tenant_id, product_id):
     logger.info(f"delete_product called for tenant: {tenant_id}, product: {product_id}")
     
     try:
-        # Create a new engine with the correct database URL
-        db_url = 'sqlite:////Users/harvingupta/.adcp/adcp.db'
-        engine = create_engine(db_url)
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        
-        with SessionLocal() as db_session:
+        with get_db_session() as db_session:
             # Verify tenant exists
             tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
             if not tenant:
@@ -179,12 +146,7 @@ def delete_all_products(tenant_id):
     logger.info(f"delete_all_products called for tenant: {tenant_id}")
     
     try:
-        # Create a new engine with the correct database URL
-        db_url = 'sqlite:////Users/harvingupta/.adcp/adcp.db'
-        engine = create_engine(db_url)
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-        
-        with SessionLocal() as db_session:
+        with get_db_session() as db_session:
             # Verify tenant exists
             tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
             if not tenant:
@@ -209,3 +171,142 @@ def delete_all_products(tenant_id):
         logger.error(f"Error deleting all products: {e}", exc_info=True)
         flash(f"Error deleting products: {str(e)}", "error")
         return redirect(f"/publisher/{tenant_id}/products")
+
+
+@publisher_bp.route("/<tenant_id>/bulk_upload")
+def bulk_upload_form(tenant_id):
+    """Show bulk product upload form."""
+    try:
+        with get_db_session() as db_session:
+            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            if not tenant:
+                flash("Publisher not found", "error")
+                return redirect("/select_publisher")
+            
+            # Get available templates (you can customize this based on your needs)
+            templates = []
+            
+            return render_template("publisher_bulk_upload.html", tenant_id=tenant_id, templates=templates)
+    except Exception as e:
+        logger.error(f"Error loading bulk upload form: {e}", exc_info=True)
+        flash(f"Error loading bulk upload form: {str(e)}", "error")
+        return redirect(f"/publisher/{tenant_id}/products")
+
+
+@publisher_bp.route("/<tenant_id>/bulk_upload", methods=["POST"])
+def bulk_upload(tenant_id):
+    """Handle bulk product upload."""
+    try:
+        with get_db_session() as db_session:
+            tenant = db_session.query(Tenant).filter_by(tenant_id=tenant_id).first()
+            if not tenant:
+                flash("Publisher not found", "error")
+                return redirect("/select_publisher")
+            
+            # Check if file was uploaded
+            if 'file' not in request.files:
+                flash("No file selected", "error")
+                return redirect(f"/publisher/{tenant_id}/bulk_upload")
+            
+            file = request.files['file']
+            if file.filename == '':
+                flash("No file selected", "error")
+                return redirect(f"/publisher/{tenant_id}/bulk_upload")
+            
+            # Handle CSV upload
+            if file.filename.endswith('.csv'):
+                import csv
+                import io
+                
+                # Read CSV content
+                content = file.read().decode('utf-8')
+                csv_reader = csv.DictReader(io.StringIO(content))
+                
+                products_created = 0
+                errors = []
+                
+                for row in csv_reader:
+                    try:
+                        # Create product from CSV row
+                        product = Product(
+                            product_id=row.get('product_id') or f"prod_{secrets.token_hex(8)}",
+                            tenant_id=tenant_id,
+                            name=row['name'],
+                            description=row.get('description', ''),
+                            formats=row.get('formats', '').split(',') if row.get('formats') else [],
+                            targeting_template={},
+                            delivery_type=row.get('delivery_type', 'non_guaranteed'),
+                            is_fixed_price=row.get('delivery_type') == 'guaranteed',
+                            cpm=float(row.get('cpm', 0)),
+                            price_guidance={},
+                            is_custom=False,
+                            countries=row.get('countries', '').split(',') if row.get('countries') else [],
+                            implementation_config={}
+                        )
+                        
+                        db_session.add(product)
+                        products_created += 1
+                        
+                    except Exception as e:
+                        errors.append(f"Row {row.get('name', 'Unknown')}: {str(e)}")
+                
+                if errors:
+                    db_session.rollback()
+                    flash(f"Errors occurred: {'; '.join(errors)}", "error")
+                else:
+                    db_session.commit()
+                    flash(f"Successfully created {products_created} products!", "success")
+                
+                return redirect(f"/publisher/{tenant_id}/products")
+            
+            # Handle JSON upload
+            elif file.filename.endswith('.json'):
+                import json
+                
+                content = file.read().decode('utf-8')
+                data = json.loads(content)
+                
+                products_created = 0
+                errors = []
+                
+                for product_data in data:
+                    try:
+                        product = Product(
+                            product_id=product_data.get('product_id') or f"prod_{secrets.token_hex(8)}",
+                            tenant_id=tenant_id,
+                            name=product_data['name'],
+                            description=product_data.get('description', ''),
+                            formats=product_data.get('formats', []),
+                            targeting_template=product_data.get('targeting_template', {}),
+                            delivery_type=product_data.get('delivery_type', 'non_guaranteed'),
+                            is_fixed_price=product_data.get('delivery_type') == 'guaranteed',
+                            cpm=float(product_data.get('cpm', 0)),
+                            price_guidance=product_data.get('price_guidance', {}),
+                            is_custom=product_data.get('is_custom', False),
+                            countries=product_data.get('countries', []),
+                            implementation_config=product_data.get('implementation_config', {})
+                        )
+                        
+                        db_session.add(product)
+                        products_created += 1
+                        
+                    except Exception as e:
+                        errors.append(f"Product {product_data.get('name', 'Unknown')}: {str(e)}")
+                
+                if errors:
+                    db_session.rollback()
+                    flash(f"Errors occurred: {'; '.join(errors)}", "error")
+                else:
+                    db_session.commit()
+                    flash(f"Successfully created {products_created} products!", "success")
+                
+                return redirect(f"/publisher/{tenant_id}/products")
+            
+            else:
+                flash("Unsupported file format. Please upload CSV or JSON files.", "error")
+                return redirect(f"/publisher/{tenant_id}/bulk_upload")
+                
+    except Exception as e:
+        logger.error(f"Error in bulk upload: {e}", exc_info=True)
+        flash(f"Error in bulk upload: {str(e)}", "error")
+        return redirect(f"/publisher/{tenant_id}/bulk_upload")

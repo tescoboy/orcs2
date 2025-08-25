@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+
+{% block title %}Performance Monitoring Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-chart-line"></i>
+                Performance Monitoring Dashboard
+            </h1>
+        </div>
+    </div>
+
+    <!-- Overall Health Status -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-heartbeat"></i>
+                        System Health Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="health-status" class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Total Requests</h6>
+                            <h3 id="total-requests">-</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-chart-bar fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Success Rate</h6>
+                            <h3 id="success-rate">-</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Avg Response Time</h6>
+                            <h3 id="avg-response-time">-</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Active Agents</h6>
+                            <h3 id="active-agents">-</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-robot fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Charts -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-area"></i>
+                        Response Time Trends
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="response-time-chart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie"></i>
+                        Agent Performance Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="agent-performance-chart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Performing Agents -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-trophy"></i>
+                        Top Performing Agents
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="top-agents-table">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Agent ID</th>
+                                    <th>Avg Response Time (ms)</th>
+                                    <th>Total Calls</th>
+                                    <th>Performance Score</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" class="text-center">
+                                        <div class="spinner-border spinner-border-sm" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Summary -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Error Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="error-summary">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cache Management -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-database"></i>
+                        Cache Management
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div id="cache-stats">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-warning" onclick="clearCache()">
+                                <i class="fas fa-trash"></i>
+                                Clear Cache
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Auto-refresh script -->
+<script>
+let refreshInterval;
+
+function updateHealthStatus() {
+    fetch('/monitoring/health')
+        .then(response => response.json())
+        .then(data => {
+            const healthDiv = document.getElementById('health-status');
+            const statusClass = data.status === 'healthy' ? 'text-success' : 
+                              data.status === 'warning' ? 'text-warning' : 'text-danger';
+            
+            healthDiv.innerHTML = `
+                <h2 class="${statusClass}">
+                    <i class="fas fa-${data.status === 'healthy' ? 'check-circle' : 
+                                     data.status === 'warning' ? 'exclamation-triangle' : 'times-circle'}"></i>
+                    ${data.status.toUpperCase()}
+                </h2>
+                ${data.issues.length > 0 ? `
+                    <div class="alert alert-warning">
+                        <strong>Issues:</strong>
+                        <ul class="mb-0">
+                            ${data.issues.map(issue => `<li>${issue}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+            `;
+        })
+        .catch(error => {
+            console.error('Error fetching health status:', error);
+            document.getElementById('health-status').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Error loading health status
+                </div>
+            `;
+        });
+}
+
+function updateMetrics() {
+    fetch('/monitoring/metrics')
+        .then(response => response.json())
+        .then(data => {
+            // Update key metrics
+            document.getElementById('total-requests').textContent = data.performance.total_requests || 0;
+            document.getElementById('success-rate').textContent = 
+                `${(data.performance.overall_success_rate || 0).toFixed(1)}%`;
+            document.getElementById('avg-response-time').textContent = 
+                `${(data.performance.avg_response_time_ms || 0).toFixed(0)}ms`;
+            document.getElementById('active-agents').textContent = 
+                data.performance.total_agents_tracked || 0;
+
+            // Update top agents table
+            updateTopAgentsTable(data.top_agents);
+
+            // Update error summary
+            updateErrorSummary(data.errors);
+
+            // Update cache stats
+            updateCacheStats(data.cache);
+        })
+        .catch(error => {
+            console.error('Error fetching metrics:', error);
+        });
+}
+
+function updateTopAgentsTable(topAgents) {
+    const tbody = document.querySelector('#top-agents-table tbody');
+    if (topAgents.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">No agent data available</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = topAgents.map((agent, index) => `
+        <tr>
+            <td>${index + 1}</td>
+            <td><code>${agent.agent_id}</code></td>
+            <td>${agent.avg_response_time_ms.toFixed(0)}ms</td>
+            <td>${agent.total_calls}</td>
+            <td>
+                <div class="progress">
+                    <div class="progress-bar" style="width: ${Math.min(100, (1 - agent.avg_response_time_ms / 1000) * 100)}%">
+                        ${Math.min(100, (1 - agent.avg_response_time_ms / 1000) * 100).toFixed(0)}%
+                    </div>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function updateErrorSummary(errorData) {
+    const errorDiv = document.getElementById('error-summary');
+    if (errorData.total_errors === 0) {
+        errorDiv.innerHTML = `
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                No errors reported
+            </div>
+        `;
+        return;
+    }
+
+    const topErrors = Object.entries(errorData.top_errors || {});
+    errorDiv.innerHTML = `
+        <div class="alert alert-warning">
+            <strong>Total Errors: ${errorData.total_errors}</strong>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Error Type</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${topErrors.map(([error, count]) => `
+                        <tr>
+                            <td><code>${error}</code></td>
+                            <td><span class="badge bg-danger">${count}</span></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function updateCacheStats(cacheData) {
+    const cacheDiv = document.getElementById('cache-stats');
+    cacheDiv.innerHTML = `
+        <div class="row">
+            <div class="col-6">
+                <strong>Cache Size:</strong><br>
+                <span class="badge bg-info">${cacheData.size} / ${cacheData.max_size}</span>
+            </div>
+            <div class="col-6">
+                <strong>TTL:</strong><br>
+                <span class="badge bg-secondary">${cacheData.ttl_seconds}s</span>
+            </div>
+        </div>
+    `;
+}
+
+function clearCache() {
+    if (confirm('Are you sure you want to clear the cache? This will remove all cached responses.')) {
+        fetch('/monitoring/cache/clear', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Cache cleared successfully');
+                    updateMetrics();
+                } else {
+                    alert('Error clearing cache: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error clearing cache:', error);
+                alert('Error clearing cache');
+            });
+    }
+}
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    updateHealthStatus();
+    updateMetrics();
+    
+    // Auto-refresh every 30 seconds
+    refreshInterval = setInterval(() => {
+        updateHealthStatus();
+        updateMetrics();
+    }, 30000);
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
+</script>
+{% endblock %}

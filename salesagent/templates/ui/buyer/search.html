@@ -80,16 +80,16 @@
                                     </label>
                                     <div class="form-text mb-2">Include specific publishers</div>
                                     <select class="form-select mb-2" name="include_tenant_ids" multiple>
-                                        <option value="technews-daily">TechNews Daily</option>
-                                        <option value="entertainment-hub">Entertainment Hub</option>
-                                        <option value="lifestyle-mag">Lifestyle Magazine</option>
+                                        {% for tenant in tenants %}
+                                        <option value="{{ tenant.tenant_id }}">{{ tenant.name }}</option>
+                                        {% endfor %}
                                     </select>
                                     
                                     <div class="form-text mb-2">Exclude specific publishers</div>
                                     <select class="form-select" name="exclude_tenant_ids" multiple>
-                                        <option value="technews-daily">TechNews Daily</option>
-                                        <option value="entertainment-hub">Entertainment Hub</option>
-                                        <option value="lifestyle-mag">Lifestyle Magazine</option>
+                                        {% for tenant in tenants %}
+                                        <option value="{{ tenant.tenant_id }}">{{ tenant.name }}</option>
+                                        {% endfor %}
                                     </select>
                                 </div>
                             </div>

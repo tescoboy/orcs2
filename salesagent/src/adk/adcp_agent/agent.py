@@ -515,6 +515,83 @@ check_media_buy_status_tool = FunctionTool(check_media_buy_status)
 get_signals_tool = FunctionTool(get_signals)
 add_creative_assets_tool = FunctionTool(add_creative_assets)
 
+# Add a method to analyze and rank products
+async def analyze_products(context: dict) -> str:
+    """Analyze and rank products based on a campaign brief using Gemini."""
+    try:
+        import os
+        import json
+        import google.generativeai as genai
+        
+        # Get Gemini API key
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            return json.dumps({"error": "GEMINI_API_KEY not set", "products": []})
+        
+        # Configure Gemini
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-2.0-flash-exp")
+        
+        # Extract context
+        products = context.get('products', [])
+        prompt = context.get('prompt', '')
+        max_results = context.get('max_results', 10)
+        
+        # Create the AI prompt for product ranking
+        ai_prompt = f"""
+You are an expert media buyer analyzing products for a programmatic advertising campaign.
+
+Campaign Brief: {prompt}
+
+Available Products:
+{json.dumps(products, indent=2)}
+
+Your task:
+1. Analyze each product's relevance to the campaign brief
+2. Consider targeting capabilities, format compatibility, and pricing
+3. Rank products from most to least relevant
+4. Return the top {max_results} products
+
+Response format (JSON only):
+{{
+  "products": [
+    {{
+      "product_id": "product_id_here",
+      "relevance_score": 0.95,
+      "reasoning": "Why this product is relevant"
+    }}
+  ]
+}}
+
+Focus on:
+- Targeting alignment with brief requirements
+- Format suitability for campaign goals
+- Pricing compatibility with budget
+- Geographic targeting match
+- Delivery type appropriateness
+
+Return ONLY the JSON response, no additional text.
+"""
+        
+        # Call Gemini
+        response = model.generate_content(ai_prompt)
+        response_text = response.text
+        
+        # Clean and parse response
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        
+        # Parse JSON response
+        ai_response = json.loads(response_text.strip())
+        
+        return json.dumps(ai_response)
+        
+    except Exception as e:
+        print(f"Error in analyze_products: {e}")
+        return json.dumps({"error": str(e), "products": []})
+
 # Create the agent with proper ADK configuration and all AdCP tools
 root_agent = LlmAgent(
     name="adcp_sales_agent",
@@ -571,6 +648,9 @@ Be helpful, professional, and guide advertisers through the entire buying proces
     ],
     description="Full AdCP v2.4 compliant sales agent for advertising inventory",
 )
+
+# Note: analyze_products function is available for direct import
+# but cannot be added to the LlmAgent object due to ADK constraints
 
 # Export the agent for ADK to find
 __all__ = ["root_agent"]

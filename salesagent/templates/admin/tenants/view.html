@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}View Tenant - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-building me-2"></i>
+                    Tenant Details: {{ tenant.name }}
+                </h1>
+                <div>
+                    <a href="{{ url_for('admin_tenants.edit_tenant', tenant_id=tenant.tenant_id) }}" class="btn btn-primary">
+                        <i class="fas fa-edit me-1"></i>
+                        Edit Tenant
+                    </a>
+                    <a href="{{ url_for('admin_tenants.list_tenants') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>
+                        Back to Tenants
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Basic Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Tenant ID:</dt>
+                                <dd class="col-sm-8"><code>{{ tenant.tenant_id }}</code></dd>
+                                
+                                <dt class="col-sm-4">Name:</dt>
+                                <dd class="col-sm-8">{{ tenant.name }}</dd>
+                                
+                                <dt class="col-sm-4">Subdomain:</dt>
+                                <dd class="col-sm-8">{{ tenant.subdomain }}</dd>
+                                
+                                <dt class="col-sm-4">Status:</dt>
+                                <dd class="col-sm-8">
+                                    {% if tenant.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Ad Server:</dt>
+                                <dd class="col-sm-8">{{ tenant.ad_server }}</dd>
+                                
+                                <dt class="col-sm-4">Billing Plan:</dt>
+                                <dd class="col-sm-8">{{ tenant.billing_plan }}</dd>
+                                
+                                <dt class="col-sm-4">Max Daily Budget:</dt>
+                                <dd class="col-sm-8">${{ "{:,.2f}".format(tenant.max_daily_budget) }}</dd>
+                                
+                                <dt class="col-sm-4">Created:</dt>
+                                <dd class="col-sm-8">{{ tenant.created_at.strftime('%Y-%m-%d %H:%M:%S') if tenant.created_at else 'N/A' }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-6">AEE Signals:</dt>
+                                <dd class="col-sm-6">
+                                    {% if tenant.enable_aee_signals %}
+                                        <span class="badge bg-success">Enabled</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Disabled</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-6">Human Review:</dt>
+                                <dd class="col-sm-6">
+                                    {% if tenant.human_review_required %}
+                                        <span class="badge bg-warning">Required</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Not Required</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-6">Last Updated:</dt>
+                                <dd class="col-sm-6">{{ tenant.updated_at.strftime('%Y-%m-%d %H:%M:%S') if tenant.updated_at else 'N/A' }}</dd>
+                                
+                                <dt class="col-sm-6">Admin Token:</dt>
+                                <dd class="col-sm-6">
+                                    <code>{{ tenant.admin_token[:8] }}...</code>
+                                    <button class="btn btn-sm btn-outline-secondary ms-2" onclick="regenerateToken('{{ tenant.tenant_id }}')">
+                                        <i class="fas fa-refresh"></i>
+                                    </button>
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Principals ({{ principals|length }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if principals %}
+                        <div class="list-group list-group-flush">
+                            {% for principal in principals %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ principal.name }}</h6>
+                                    <small class="text-muted">{{ principal.principal_id }}</small>
+                                </div>
+                                <span class="badge bg-primary rounded-pill">{{ principal.tenant_id }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No principals found for this tenant.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function regenerateToken(tenantId) {
+    if (confirm('Are you sure you want to regenerate the admin token? This will invalidate the current token.')) {
+        fetch(`/admin/tenants/${tenantId}/regenerate_token`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Token regenerated successfully! New token: ' + data.new_token);
+                location.reload();
+            } else {
+                alert('Error regenerating token: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error regenerating token');
+        });
+    }
+}
+</script>
+{% endblock %}

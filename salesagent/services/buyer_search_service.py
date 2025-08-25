@@ -15,35 +15,38 @@ def search_products(prompt: str, filters: Optional[Dict[str, Any]] = None,
     try:
         # Set the correct database URL
         import os
-        os.environ['DATABASE_URL'] = 'sqlite:////Users/harvingupta/.adcp/adcp.db'
+        os.environ['DATABASE_URL'] = 'sqlite:///./adcp.db'
         
         # Import the simple orchestrator service directly to avoid HTTP round trips
-        from orchestrator.simple_orchestrator import SimpleOrchestratorService
-        from schemas.orchestrator.request import BuyerOrchestrateRequest
+        import sys
+        import os
+        # Add the salesagent directory to the path so we can import from orchestrator and schemas
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         
-        # Create the orchestrator service
-        orchestrator = SimpleOrchestratorService()
+        from src.services.orchestrator_service import orchestrator_service
+        from src.core.schemas.agent import AgentSelectRequest
         
         # Build the request
-        request_data = BuyerOrchestrateRequest(
+        request_data = AgentSelectRequest(
             prompt=prompt,
             max_results=max_results,
-            include_tenant_ids=include_tenant_ids,
-            exclude_tenant_ids=exclude_tenant_ids,
-            include_agent_ids=include_agent_ids,
             filters=filters or {},
-            locale=None,
-            currency=None
+            locale="en-US",
+            currency="USD",
+            timeout_seconds=10
         )
         
         # Call the orchestrator
-        response = orchestrator.orchestrate(request_data)
+        import asyncio
+        response = asyncio.run(orchestrator_service.orchestrate(
+            request=request_data,
+            include_tenant_ids=include_tenant_ids,
+            exclude_tenant_ids=exclude_tenant_ids,
+            include_agent_ids=include_agent_ids
+        ))
         
-        # Convert to normalized product dicts
-        products = []
-        for product in response.products:
-            # Products are already dictionaries from the simple orchestrator
-            products.append(product)
+        # Extract products from response
+        products = response.get("products", [])
         
         logger.info(f"Search returned {len(products)} products for prompt: {prompt[:50]}...")
         
