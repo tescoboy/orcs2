@@ -23,6 +23,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Numeric,
     Enum,
+    PrimaryKeyConstraint,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -42,24 +43,27 @@ class Tenant(Base, JSONValidatorMixin):
     __tablename__ = "tenants"
 
     tenant_id = Column(String(50), primary_key=True)
-    name = Column(String(200), nullable=False)
-    subdomain = Column(String(100), unique=True, nullable=False)
-    created_at = Column(DateTime, nullable=False, server_default=func.now())
-    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
-    is_active = Column(Boolean, default=True)
-    billing_plan = Column(String(50), default="standard")
-    billing_contact = Column(String(255))
-
-    # New columns from migration
+    name = Column(String(255), nullable=False)
+    subdomain = Column(String(100), nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+    is_active = Column(Boolean)
+    billing_plan = Column(String(50))
+    billing_contact = Column(Text)
     ad_server = Column(String(50))
     max_daily_budget = Column(Integer, nullable=False, default=10000)
     enable_aee_signals = Column(Boolean, nullable=False, default=True)
-    authorized_emails = Column(JSON)  # JSON array
-    authorized_domains = Column(JSON)  # JSON array
-    auto_approve_formats = Column(JSON)  # JSON array
-    policy_settings = Column(JSON)  # JSON object
+    authorized_emails = Column(Text)  # TEXT (JSON string)
+    authorized_domains = Column(Text)  # TEXT (JSON string)
+    slack_webhook_url = Column(String(500))
+    admin_token = Column(String(100))
+    auto_approve_formats = Column(Text)  # TEXT (JSON string)
     human_review_required = Column(Boolean, nullable=False, default=True)
-    admin_token = Column(String(255))
+    slack_audit_webhook_url = Column(String(500))
+    hitl_webhook_url = Column(String(500))
+    policy_settings = Column(Text)  # TEXT (JSON string)
+    ai_prompt_template = Column(Text)
+    ai_prompt_updated_at = Column(DateTime)
 
 
 class CreativeFormat(Base):
@@ -79,28 +83,37 @@ class CreativeFormat(Base):
 class Product(Base, JSONValidatorMixin):
     __tablename__ = "products"
 
-    product_id = Column(String(50), primary_key=True)
-    name = Column(String(200), nullable=False)
-    description = Column(Text)
     tenant_id = Column(String(50), ForeignKey("tenants.tenant_id"), nullable=False)
-    cpm = Column(Integer, nullable=False)  # Cost per thousand impressions in cents
-    formats = Column(JSON)  # JSON array of format IDs
-    targeting_template = Column(JSON)  # JSON object
-    delivery_type = Column(String(50), default="standard")
-    is_fixed_price = Column(Boolean, default=True)
-    created_at = Column(DateTime, nullable=False, server_default=func.now())
-    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+    product_id = Column(String(100), primary_key=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    formats = Column(JSON, nullable=False)
+    targeting_template = Column(JSON, nullable=False)
+    delivery_type = Column(String(50), nullable=False)
+    is_fixed_price = Column(Boolean, nullable=False)
+    cpm = Column(Float)
+    price_guidance = Column(Text)
+    is_custom = Column(Boolean)
+    expires_at = Column(DateTime)
+    countries = Column(JSON)
+    implementation_config = Column(JSON)
+    targeted_ages = Column(Text)
+    verified_minimum_age = Column(Integer)
 
 
 class Principal(Base, JSONValidatorMixin):
     __tablename__ = "principals"
 
-    principal_id = Column(String(50), primary_key=True)
     tenant_id = Column(String(50), ForeignKey("tenants.tenant_id"), nullable=False)
+    principal_id = Column(String(100), nullable=False)
+    name = Column(String(255), nullable=False)
+    platform_mappings = Column(JSON, nullable=False)
     access_token = Column(String(255), nullable=False)
-    platform_mappings = Column(JSON)  # JSON object
-    created_at = Column(DateTime, nullable=False, server_default=func.now())
-    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, server_default=func.now())
+    
+    __table_args__ = (
+        PrimaryKeyConstraint('tenant_id', 'principal_id'),
+    )
 
 
 class User(Base):
@@ -123,17 +136,23 @@ class User(Base):
 class MediaBuy(Base):
     __tablename__ = "media_buys"
 
-    media_buy_id = Column(String(50), primary_key=True)
-    context_id = Column(String(50), unique=True)
-    principal_id = Column(String(50), ForeignKey("principals.principal_id"), nullable=False)
+    media_buy_id = Column(String(100), primary_key=True)
     tenant_id = Column(String(50), ForeignKey("tenants.tenant_id"), nullable=False)
-    status = Column(String(50), default="pending")  # pending, active, paused, completed, cancelled
-    total_budget = Column(Float)
-    targeting_overlay = Column(JSON)  # JSON object
-    delivery_data = Column(JSON)  # JSON object
-    performance_metrics = Column(JSON)  # JSON object
-    created_at = Column(DateTime, nullable=False, server_default=func.now())
-    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+    principal_id = Column(String(100), ForeignKey("principals.principal_id"), nullable=False)
+    order_name = Column(String(255), nullable=False)
+    advertiser_name = Column(String(255), nullable=False)
+    campaign_objective = Column(Text)
+    kpi_goal = Column(Text)
+    budget = Column(Float)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    status = Column(String(50), nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now())
+    approved_at = Column(DateTime)
+    approved_by = Column(String(255))
+    raw_request = Column(JSON, nullable=False)
+    context_id = Column(String(100))
 
 
 class Task(Base):

@@ -224,9 +224,9 @@ def create_tenant():
                 new_principal = Principal(
                     tenant_id=tenant_id,
                     principal_id=principal_id,
+                    name=f"{data['name']} Default Principal",
                     platform_mappings=json.dumps(default_mappings),
                     access_token=principal_token,
-                    created_at=datetime.now(UTC),
                 )
                 db_session.add(new_principal)
 

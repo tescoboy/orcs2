@@ -524,15 +524,14 @@ def create_principal(tenant_id):
                 principal = Principal(
                     principal_id=principal_id,
                     tenant_id=tenant_id,
+                    name=form_data["name"],
                     access_token=access_token,
-                    platform_mappings=json.dumps(platform_mappings) if platform_mappings else None,
-                    created_at=datetime.now(UTC),
-                    updated_at=datetime.now(UTC),
+                    platform_mappings=json.dumps(platform_mappings) if platform_mappings else "{}",
                 )
                 db_session.add(principal)
                 db_session.commit()
 
-                flash(f"Advertiser '{principal_id}' created successfully", "success")
+                flash(f"Advertiser '{principal.name}' created successfully", "success")
                 return redirect(url_for("tenants.dashboard", tenant_id=tenant_id))
 
         except Exception as e:
