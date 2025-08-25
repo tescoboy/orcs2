@@ -272,21 +272,19 @@ def bulk_upload(tenant_id):
     """Handle bulk product upload."""
     try:
         if "file" not in request.files:
-            flash("No file uploaded", "error")
-            return redirect(url_for("products.bulk_upload_form", tenant_id=tenant_id))
+            return jsonify({"error": "No file uploaded", "created": 0, "errors": []})
 
         file = request.files["file"]
         if file.filename == "":
-            flash("No file selected", "error")
-            return redirect(url_for("products.bulk_upload_form", tenant_id=tenant_id))
+            return jsonify({"error": "No file selected", "created": 0, "errors": []})
 
         # Check file extension
         if not file.filename.lower().endswith((".csv", ".json")):
-            flash("Only CSV and JSON files are supported", "error")
-            return redirect(url_for("products.bulk_upload_form", tenant_id=tenant_id))
+            return jsonify({"error": "Only CSV and JSON files are supported", "created": 0, "errors": []})
 
         # Process file
         created_count = 0
+        errors = []
 
         with get_db_session() as db_session:
             if file.filename.lower().endswith(".csv"):
@@ -294,7 +292,7 @@ def bulk_upload(tenant_id):
                 stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
                 csv_reader = csv.DictReader(stream)
 
-                for row in csv_reader:
+                for row_num, row in enumerate(csv_reader, 1):
                     try:
                         # Parse formats if it's a JSON string
                         formats = row.get("formats", "[]")
@@ -333,7 +331,9 @@ def bulk_upload(tenant_id):
                         db_session.add(product)
                         created_count += 1
                     except Exception as e:
-                        logger.error(f"Error processing row: {e}")
+                        error_msg = f"Row {row_num}: {str(e)}"
+                        errors.append(error_msg)
+                        logger.error(f"Error processing row {row_num}: {e}")
                         continue
 
             else:
@@ -341,7 +341,7 @@ def bulk_upload(tenant_id):
                 data = json.loads(file.stream.read())
                 products_data = data if isinstance(data, list) else [data]
 
-                for item in products_data:
+                for item_num, item in enumerate(products_data, 1):
                     try:
                         # Parse formats from JSON
                         formats = item.get("formats", [])
@@ -384,17 +384,23 @@ def bulk_upload(tenant_id):
                         db_session.add(product)
                         created_count += 1
                     except Exception as e:
-                        logger.error(f"Error processing item: {e}")
+                        error_msg = f"Item {item_num}: {str(e)}"
+                        errors.append(error_msg)
+                        logger.error(f"Error processing item {item_num}: {e}")
                         continue
 
             db_session.commit()
-            flash(f"Successfully created {created_count} products", "success")
 
     except Exception as e:
         logger.error(f"Error in bulk upload: {e}", exc_info=True)
-        flash("Error processing file", "error")
+        return jsonify({"error": f"Error processing file: {str(e)}", "created": 0, "errors": []})
 
-    return redirect(url_for("products.list_products", tenant_id=tenant_id))
+    return jsonify({
+        "success": True,
+        "created": created_count,
+        "errors": errors,
+        "message": f"Successfully created {created_count} products"
+    })
 
 
 @products_bp.route("/templates", methods=["GET"])

@@ -82,7 +82,11 @@
                 </td>
                 <td>
                     {% if product.is_fixed_price %}
-                    ${{ "%.2f"|format(product.cpm) }}
+                        {% if product.cpm is not none %}
+                            ${{ "%.2f"|format(product.cpm) }}
+                        {% else %}
+                            -
+                        {% endif %}
                     {% else %}
                         {% if product.price_guidance %}
                             {% if product.price_guidance.floor is defined %}

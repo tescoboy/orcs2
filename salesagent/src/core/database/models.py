@@ -424,6 +424,7 @@ class BuyerCampaignProduct(Base):
 Tenant.principals = relationship("Principal", back_populates="tenant")
 Tenant.products = relationship("Product", back_populates="tenant")
 Tenant.media_buys = relationship("MediaBuy", back_populates="tenant")
+Tenant.adapter_config = relationship("AdapterConfig", back_populates="tenant", uselist=False)
 
 # Principal relationships
 Principal.tenant = relationship("Tenant", back_populates="principals")
@@ -453,3 +454,6 @@ BuyerCampaign.products = relationship("BuyerCampaignProduct", back_populates="ca
 
 # BuyerCampaignProduct relationships
 BuyerCampaignProduct.campaign = relationship("BuyerCampaign", back_populates="products")
+
+# AdapterConfig relationships
+AdapterConfig.tenant = relationship("Tenant", back_populates="adapter_config")
